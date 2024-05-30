@@ -5,7 +5,7 @@ from .components.grid.grid import Grid, Coords
 from .components.grid.grid_spec import GridSpec, UniformGrid, CustomGrid, AutoGrid
 
 # subpixel
-from .components.subpixel_spec import SubpixelSpec, Staircasing
+from .components.subpixel_spec import SubpixelSpec, Staircasing, ContourPathAveraging
 from .components.subpixel_spec import VolumetricAveraging, PolarizedAveraging
 from .components.subpixel_spec import HeuristicPECStaircasing, PECConformal
 
@@ -359,6 +359,7 @@ __all__ = [
     "Staircasing",
     "VolumetricAveraging",
     "PolarizedAveraging",
+    "ContourPathAveraging",
     "HeuristicPECStaircasing",
     "PECConformal",
     "EMESimulation",
