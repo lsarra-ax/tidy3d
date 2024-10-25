@@ -551,6 +551,14 @@ def test_validate_mnt_size(monkeypatch, log_capture):
         )
         s._validate_monitor_size()
 
+    # error for simulation size in units of number of grid cells
+    monkeypatch.setattr(simulation, "MAX_SIMULATION_DATA_SIZE_NUM_CELLS", 0.5 / s.num_cells)
+    with pytest.raises(SetupError):
+        s = SIM.copy(
+            update=dict(monitors=(td.FieldMonitor(name="f", freqs=[1e12], size=(1, 1, 1)),))
+        )
+        s._validate_monitor_size()
+
 
 def test_max_geometry_validation():
     gs = td.GridSpec(wavelength=1.0)

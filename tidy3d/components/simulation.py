@@ -126,7 +126,10 @@ MAX_CELLS_TIMES_STEPS = 1e16
 MAX_TIME_MONITOR_STEPS = 5000  # does not apply to 0D monitors
 WARN_MONITOR_DATA_SIZE_GB = 10
 MAX_MONITOR_INTERNAL_DATA_SIZE_GB = 50
-MAX_SIMULATION_DATA_SIZE_GB = 50
+MAX_SIMULATION_DATA_SIZE_GB = 50  # absolute maximum of simulation data size
+MAX_SIMULATION_DATA_SIZE_NUM_CELLS = (
+    100  # max data size (bytes) relative to number of points in simulation
+)
 WARN_MODE_NUM_CELLS = 1e5
 
 # number of grid cells at which we warn about slow Simulation.epsilon()
@@ -3388,10 +3391,12 @@ class Simulation(AbstractYeeGridSimulation):
 
                 total_size_gb += monitor_size_gb
 
-        if total_size_gb > MAX_SIMULATION_DATA_SIZE_GB:
+        max_data_size_gb = MAX_SIMULATION_DATA_SIZE_NUM_CELLS * self.num_cells / 1e9
+        max_data_size_gb = min([MAX_SIMULATION_DATA_SIZE_GB, max_data_size_gb])
+        if total_size_gb > max_data_size_gb:
             raise SetupError(
                 f"Simulation's monitors have {total_size_gb:.2f}GB of estimated storage, "
-                f"a maximum of {MAX_SIMULATION_DATA_SIZE_GB:.2f}GB are allowed."
+                f"a maximum of {max_data_size_gb:.2f}GB are allowed."
             )
 
         # Some monitors store much less data than what is needed internally. Make sure that the

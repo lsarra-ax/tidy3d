@@ -34,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Behavior of `FieldProjector` now matches the server-side computation, which does not truncate the integration surface when it extends into PML regions.
 - Enabled the user to set the `ModeMonitor.colocate` field and changed to `True` by default (fields were actually already returned colocated even though this field was `False` previously).
 - More robust mode solver at radio frequencies.
-
+- Maximum simulation data size (in bytes) was capped to `100` times the number of cells in the simulation. The old cap of `50GB` total also still applies.
+ 
 ### Fixed
 - Significant speedup for field projection computations.
 - Fix numerical precision issue in `FieldProjectionCartesianMonitor`.
