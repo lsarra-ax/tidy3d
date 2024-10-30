@@ -12,6 +12,7 @@ import tidy3d as td
 from tidy3d import __version__
 from tidy3d.components.base import DATA_ARRAY_MAP
 from tidy3d.components.data.sim_data import DATA_TYPE_MAP
+from tidy3d.components.metadata import simulation_metadata
 
 from ..test_data.test_monitor_data import make_flux_data
 from ..test_data.test_sim_data import make_sim_data
@@ -335,3 +336,8 @@ def test_data_array_to_hdf5(tmp_path):
 
     # pass a file name
     flux.to_hdf5(fname=path, group_path="test")
+
+
+def test_generate_metadata_file(tmp_path):
+    metadata = simulation_metadata(SIM)
+    metadata.to_file(str(tmp_path / "metadata.json"))
