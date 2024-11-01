@@ -59,6 +59,7 @@ from .components.data.data_array import (
     PointDataArray,
     ScalarFieldDataArray,
     ScalarFieldTimeDataArray,
+    ScalarModeFieldCylindricalDataArray,
     ScalarModeFieldDataArray,
     SpatialDataArray,
 )
@@ -399,6 +400,7 @@ __all__ = [
     "FieldProjector",
     "ScalarFieldDataArray",
     "ScalarModeFieldDataArray",
+    "ScalarModeFieldCylindricalDataArray",
     "ScalarFieldTimeDataArray",
     "SpatialDataArray",
     "ModeAmpsDataArray",
