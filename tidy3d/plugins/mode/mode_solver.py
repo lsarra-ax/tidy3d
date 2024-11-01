@@ -19,6 +19,7 @@ from ...components.boundary import PML, Absorber, Boundary, BoundarySpec, PECBou
 from ...components.data.data_array import (
     FreqModeDataArray,
     ModeIndexDataArray,
+    ScalarModeFieldCylindricalDataArray,
     ScalarModeFieldDataArray,
 )
 from ...components.data.monitor_data import ModeSolverData
@@ -30,8 +31,10 @@ from ...components.grid.grid import Grid
 from ...components.medium import FullyAnisotropicMedium, LossyMetalMedium
 from ...components.mode import ModeSpec
 from ...components.monitor import ModeMonitor, ModeSolverMonitor
+from ...components.scene import Scene
 from ...components.simulation import Simulation
 from ...components.source import ModeSource, SourceTime
+from ...components.structure import Structure
 from ...components.subpixel_spec import SurfaceImpedance
 from ...components.types import (
     TYPE_TAG_STR,
@@ -40,6 +43,7 @@ from ...components.types import (
     ArrayFloat1D,
     Ax,
     Axis,
+    Axis2D,
     Direction,
     EpsSpecType,
     FreqArray,
@@ -195,6 +199,13 @@ class ModeSolver(Tidy3dBaseModel):
         return plane_center
 
     @cached_property
+    def normal_axis_2d(self) -> Axis2D:
+        """Axis normal to the mode plane in a 2D plane that is normal to the bend_axis_3d."""
+        _, idx_plane = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+
+        return idx_plane.index(self.normal_axis)
+
+    @cached_property
     def solver_symmetry(self) -> Tuple[Symmetry, Symmetry]:
         """Get symmetry for solver for propagation along self.normal axis."""
         mode_symmetry = list(self.simulation.symmetry)
@@ -333,6 +344,13 @@ class ModeSolver(Tidy3dBaseModel):
         if self.mode_spec.group_index_step > 0:
             return self._get_data_with_group_index()
 
+        if (
+            self.mode_spec.bend_angle_rotation
+            and self.mode_spec.bend_radius is not None
+            and np.abs(self.mode_spec.angle_theta) > 0
+        ):
+            return self.rotated_mode_solver_data
+
         # Compute data on the Yee grid
         mode_solver_data = self._data_on_yee_grid()
 
@@ -354,6 +372,416 @@ class ModeSolver(Tidy3dBaseModel):
         self._field_decay_warning(mode_solver_data.symmetry_expanded)
 
         return mode_solver_data
+
+    @cached_property
+    def bend_axis_3d(self) -> Axis:
+        """Transform the 2D bend axis to its corresponding 3D axis."""
+        _, idx_plane = self.plane.pop_axis((0, 1, 2), axis=self.normal_axis)
+        return idx_plane[self.mode_spec.bend_axis]
+
+    @cached_property
+    def rotated_mode_solver_data(self) -> ModeSolverData:
+        # Create a mode solver with rotated geometries for a reference solution with 0-degree angle
+        solver_ref = self.rotated_structures_copy
+        solver_ref_data = solver_ref.data_raw
+
+        # The reference data should always be colocated to convert to cylindrical coordinates
+        n_complex = solver_ref_data.n_complex
+        if not solver_ref.colocate:
+            solver_ref_data = solver_ref._colocate_data(mode_solver_data=solver_ref_data)
+
+        # Transform the colocated mode solution from cartesian to cylindrical coordinates
+        solver_ref_data_cylindrical = self._car_2_cyn(mode_solver_data=solver_ref_data)
+
+        try:
+            solver = self.reduced_simulation_copy
+        except Exception as e:
+            solver = self
+            log.warning(
+                "Mode solver reduced_simulation_copy failed. "
+                "Falling back to non-reduced simulation, which may be slower. "
+                f"Exception: {str(e)}"
+            )
+
+        # Compute the mode solution by rotating the reference data to the monitor plane
+        rotated_mode_fields = self._mode_rotation(
+            solver_ref_data_cylindrical=solver_ref_data_cylindrical,
+            solver=solver,
+        )
+
+        # TODO: At a later time, we should ensure that `eps_spec` is automatically returned to
+        # to compute the backward propagation mode solution using a mode solver
+        # with direction "-".
+        eps_spec = []
+        for _ in self.freqs:
+            eps_spec.append("tensorial_complex")
+        # finite grid corrections
+        grid_factors = solver._grid_correction(
+            simulation=solver.simulation,
+            plane=solver.plane,
+            mode_spec=solver.mode_spec,
+            n_complex=n_complex,
+            direction=solver.direction,
+        )
+
+        # Make mode solver data on the Yee grid
+        mode_solver_monitor = solver.to_mode_solver_monitor(name=MODE_MONITOR_NAME)
+        grid_expanded = solver.simulation.discretize_monitor(mode_solver_monitor)
+        rotated_mode_data = ModeSolverData(
+            monitor=mode_solver_monitor,
+            symmetry=solver.simulation.symmetry,
+            symmetry_center=solver.simulation.center,
+            grid_expanded=grid_expanded,
+            grid_primal_correction=grid_factors[0],
+            grid_dual_correction=grid_factors[1],
+            eps_spec=eps_spec,
+            **rotated_mode_fields,
+        )
+
+        self._normalize_modes(mode_solver_data=rotated_mode_data)
+
+        return rotated_mode_data
+
+    @cached_property
+    def rotated_structures_copy(self):
+        """Create a copy of the original ModeSolver with rotated structures
+        to the simulation and updates the ModeSpec to disable bend correction
+        and reset angles to normal."""
+
+        rotated_structures = self._rotate_structures()
+        rotated_simulation = self.simulation.updated_copy(structures=rotated_structures)
+        rotated_mode_spec = self.mode_spec.updated_copy(
+            bend_angle_rotation=False, angle_theta=0, angle_phi=0
+        )
+
+        return self.updated_copy(simulation=rotated_simulation, mode_spec=rotated_mode_spec)
+
+    def _rotate_structures(self) -> List[Structure]:
+        """Rotate the structures intersecting with modal plane by angle theta
+        if bend_correction is enabeled for bend simulations."""
+
+        _, (idx_u, idx_v) = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+
+        mnt_center = self.plane.center
+        angle_theta = self.mode_spec.angle_theta
+        angle_phi = self.mode_spec.angle_phi
+
+        theta_map = {
+            (0, 2): -angle_theta * np.cos(angle_phi),
+            (0, 1): angle_theta * np.sin(angle_phi),
+            (1, 2): angle_theta * np.cos(angle_phi),
+            (1, 0): -angle_theta * np.sin(angle_phi),
+            (2, 1): -angle_theta * np.cos(angle_phi),
+            (2, 0): angle_theta * np.sin(angle_phi),
+        }
+        theta = theta_map.get((self.normal_axis, self.bend_axis_3d), 0)
+
+        # Get the translation values
+        translate_coords = [0, 0, 0]
+        translate_coords[idx_u] = mnt_center[idx_u]
+        translate_coords[idx_v] = mnt_center[idx_v]
+
+        reduced_sim_solver = self.reduced_simulation_copy
+        rotated_structures = []
+        for structure in Scene.intersecting_structures(
+            self.plane, reduced_sim_solver.simulation.structures
+        ):
+            # Rotate and apply translations
+            geometry = structure.geometry
+            geometry = (
+                geometry.translated(
+                    x=-translate_coords[0], y=-translate_coords[1], z=-translate_coords[2]
+                )
+                .rotated(theta, axis=self.bend_axis_3d)
+                .translated(x=translate_coords[0], y=translate_coords[1], z=translate_coords[2])
+            )
+
+            rotated_structures.append(structure.updated_copy(geometry=geometry))
+
+        return rotated_structures
+
+    @cached_property
+    def rotated_bend_center(self) -> List:
+        """Calculate the center at the rotated bend such that the modal plane is normal
+        to the azimuthal direction of the bend."""
+        rotated_bend_center = list(self.plane.center)
+        idx_rotate = 3 - self.normal_axis - self.bend_axis_3d
+        rotated_bend_center[idx_rotate] -= self.mode_spec.bend_radius
+
+        return rotated_bend_center
+
+    def _car_2_cyn(
+        self, mode_solver_data: ModeSolverData
+    ) -> Dict[Union[ScalarModeFieldCylindricalDataArray, ModeIndexDataArray]]:
+        """Convert cartesian fields to cylindrical fields centered at the
+        rotated bend center."""
+
+        # Extract coordinates from one of the six field components as they are colocated
+        pts = [mode_solver_data.Ex[name].values.copy() for name in ["x", "y", "z"]]
+        f, mode_index = mode_solver_data.Ex.f, mode_solver_data.Ex.mode_index
+
+        lateral_axis = 3 - self.normal_axis - self.bend_axis_3d
+
+        idx_w, idx_uv = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+        idx_u, idx_v = idx_uv
+
+        pts[lateral_axis] -= self.rotated_bend_center[lateral_axis]
+        rho = np.sort(np.abs(pts[lateral_axis]))
+
+        theta = np.atleast_1d(
+            np.arctan2(
+                self.plane.center[idx_v] - self.rotated_bend_center[idx_v],
+                self.plane.center[idx_u] - self.rotated_bend_center[idx_u],
+            )
+        )
+        axial = pts[idx_w]
+
+        # Initialize output data arrays for cylindrical fields
+        field_data_cylindrical = {
+            field_name_cylindrical: np.zeros(
+                (len(rho), len(theta), len(axial), len(f), len(mode_index)), dtype=complex
+            )
+            for field_name_cylindrical in ("Er", "Etheta", "Eaxial", "Hr", "Htheta", "Haxial")
+        }
+
+        cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+
+        axes = ("x", "y", "z")
+        axial_name, plane_names = self.plane.pop_axis(axes, axis=self.bend_axis_3d)
+        cmp_1, cmp_2 = plane_names
+        plane_name_normal = axes[self.normal_axis]
+        plane_name_lateral = axes[lateral_axis]
+
+        # Determine which coordinate transformation to use based on the lateral axis
+        if cmp_1 == plane_name_lateral:
+            lateral_coord_value = rho * cos_theta + self.rotated_bend_center[idx_u]
+        elif cmp_2 == plane_name_lateral:
+            lateral_coord_value = rho * sin_theta + self.rotated_bend_center[idx_v]
+
+        # Transform fields from cartesian to cylindrical
+        fields_interp = {
+            field_name: getattr(mode_solver_data, field_name)
+            .sel({plane_name_normal: self.plane.center[self.normal_axis]}, method="nearest")
+            .interp(
+                {plane_name_lateral: lateral_coord_value},
+                method="linear",
+                kwargs={"fill_value": "extrapolate"},
+            )
+            .transpose(plane_name_lateral, ...)
+            .values
+            for field_name in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
+        }
+
+        for field_type in ["E", "H"]:
+            field_data_cylindrical[field_type + "r"][:, 0] = (
+                fields_interp[field_type + cmp_1] * cos_theta
+                + fields_interp[field_type + cmp_2] * sin_theta
+            )
+            field_data_cylindrical[field_type + "theta"][:, 0] = (
+                -fields_interp[field_type + cmp_1] * sin_theta
+                + fields_interp[field_type + cmp_2] * cos_theta
+            )
+            field_data_cylindrical[field_type + "axial"][:, 0] = fields_interp[
+                field_type + axial_name
+            ]
+
+        coords = {
+            "rho": rho,
+            "theta": theta,
+            "axial": axial,
+            "f": f,
+            "mode_index": mode_index,
+        }
+
+        solver_data_cylindrical = {
+            name: ScalarModeFieldCylindricalDataArray(field_data_cylindrical[name], coords=coords)
+            for name in ("Er", "Etheta", "Eaxial", "Hr", "Htheta", "Haxial")
+        }
+        solver_data_cylindrical["n_complex"] = mode_solver_data.n_complex
+
+        return solver_data_cylindrical
+
+    def _mode_rotation(
+        self,
+        solver_ref_data_cylindrical: Dict[
+            Union[ScalarModeFieldCylindricalDataArray, ModeIndexDataArray]
+        ],
+        solver: ModeSolver,
+    ) -> ModeSolverData:
+        """Rotate the mode solver solution from the reference plane in cylindrical coordinates
+        to the desired monitor plane."""
+        rotated_data_arrays = {}
+        for field_name in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
+            if self.colocate is True:
+                # Get colocation coordinates in the solver plane
+                normal_dim, _ = self.plane.pop_axis("xyz", self.normal_axis)
+                colocate_coords = self._get_colocation_coordinates()
+                colocate_coords[normal_dim] = np.atleast_1d(self.plane.center[self.normal_axis])
+                x = colocate_coords["x"]
+                y = colocate_coords["y"]
+                z = colocate_coords["z"]
+                xyz_coords = [x.copy(), y.copy(), z.copy()]
+            else:
+                # Extract coordinate values from one of the six field components
+                xyz_coords = solver.grid_snapped[field_name].to_list
+                x, y, z = (coord.copy() for coord in xyz_coords)
+
+            f = np.atleast_1d(self.freqs)
+            mode_index = np.arange(self.mode_spec.num_modes)
+
+            # Initialize output arrays
+            shape = (x.size, y.size, z.size, len(f), mode_index.size)
+            rotated_field_cmp = np.zeros(shape, dtype=complex)
+
+            idx_w, idx_uv = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+            idx_u, idx_v = idx_uv
+
+            pts = [coord.copy() for coord in xyz_coords]
+
+            pts[idx_u] -= self.bend_center[idx_u]
+            pts[idx_v] -= self.bend_center[idx_v]
+
+            rho = np.sqrt(pts[idx_u] ** 2 + pts[idx_v] ** 2)
+            theta = np.arctan2(pts[idx_v], pts[idx_u])
+            axial = pts[idx_w]
+
+            theta_rel = theta - self.theta_reference
+
+            cos_theta = pts[idx_u] / rho
+            sin_theta = pts[idx_v] / rho
+
+            cmp_normal, source_names = self.plane.pop_axis(("x", "y", "z"), axis=self.bend_axis_3d)
+            cmp_1, cmp_2 = source_names
+
+            k0 = 2 * np.pi * f / C_0
+            n_eff = solver_ref_data_cylindrical["n_complex"].values
+            beta = k0[:, None] * n_eff * np.abs(self.mode_spec.bend_radius)
+
+            lateral_axis = 3 - self.normal_axis - self.bend_axis_3d
+
+            # Interpolate field components
+            fields = {}
+            for field in ["E", "H"]:
+                for comp in ["r", "theta", "axial"]:
+                    data = (
+                        solver_ref_data_cylindrical[f"{field}{comp}"]
+                        .isel(theta=0)
+                        .interp(
+                            rho=rho,
+                            axial=axial,
+                            method="linear",
+                            kwargs={"fill_value": "extrapolate"},
+                        )
+                    )
+
+                    if lateral_axis > self.bend_axis_3d:
+                        data = data.transpose("axial", ...)
+
+                    fields[f"{field}{comp}"] = data.values
+
+            # Determine the phase factor based on normal_axis_2d
+            sign = -1 if self.normal_axis_2d == 0 else 1
+            if (self.direction == "+" and self.mode_spec.bend_radius >= 0) or (
+                self.direction == "-" and self.mode_spec.bend_radius < 0
+            ):
+                phase = np.exp(sign * 1j * theta_rel[:, None, None] * beta)
+            else:
+                phase = np.exp(sign * -1j * theta_rel[:, None, None] * beta)
+
+            # Set fixed index to normal_axis
+            idx = [slice(None)] * 3
+            idx[self.normal_axis] = 0
+            idx_x, idx_y, idx_z = idx
+
+            # Assign rotated fields
+            if lateral_axis > self.bend_axis_3d:
+                phase_expansion = phase[None, :]
+                cos_theta_expansion = cos_theta[None, :, None, None]
+                sin_theta_expansion = sin_theta[None, :, None, None]
+            else:
+                phase_expansion = phase[:, None]
+                cos_theta_expansion = cos_theta[:, None, None, None]
+                sin_theta_expansion = sin_theta[:, None, None, None]
+
+            if field_name == f"E{cmp_1}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * (
+                    fields["Er"] * cos_theta_expansion - fields["Etheta"] * sin_theta_expansion
+                )
+            elif field_name == f"E{cmp_2}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * (
+                    fields["Er"] * sin_theta_expansion + fields["Etheta"] * cos_theta_expansion
+                )
+            elif field_name == f"E{cmp_normal}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * fields["Eaxial"]
+            elif field_name == f"H{cmp_1}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * (
+                    fields["Hr"] * cos_theta_expansion - fields["Htheta"] * sin_theta_expansion
+                )
+            elif field_name == f"H{cmp_2}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * (
+                    fields["Hr"] * sin_theta_expansion + fields["Htheta"] * cos_theta_expansion
+                )
+            elif field_name == f"H{cmp_normal}":
+                rotated_field_cmp[idx_x, idx_y, idx_z, :, :] = phase_expansion * fields["Haxial"]
+
+            coords = {"x": x, "y": y, "z": z, "f": f, "mode_index": mode_index}
+            rotated_data_arrays[field_name] = ScalarModeFieldDataArray(
+                rotated_field_cmp, coords=coords
+            )
+
+        rotated_data_arrays["n_complex"] = solver_ref_data_cylindrical["n_complex"]
+
+        return rotated_data_arrays
+
+    @cached_property
+    def theta_reference(self) -> float:
+        """Computes the azimutal angle of the reference modal plane."""
+        _, local_coords = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+        local_coord_x, local_coord_y = local_coords
+        theta_ref = np.arctan2(
+            self.plane.center[local_coord_y] - self.bend_center[local_coord_y],
+            self.plane.center[local_coord_x] - self.bend_center[local_coord_x],
+        )
+
+        return theta_ref
+
+    @cached_property
+    def bend_center(self) -> List:
+        """Computes the bend center based on plane center, angle_theta and angle_phi."""
+        _, id_bend_uv = self.plane.pop_axis((0, 1, 2), axis=self.bend_axis_3d)
+
+        id_bend_u, id_bend_v = id_bend_uv
+        bend_radius = self.mode_spec.bend_radius
+        theta = self.mode_spec.angle_theta
+        phi = self.mode_spec.angle_phi
+
+        bend_center = list(self.plane.center)
+
+        angle_map = {
+            (0, 2): lambda: theta * np.cos(phi),
+            (0, 1): lambda: theta * np.sin(phi),
+            (1, 2): lambda: theta * np.cos(phi),
+            (1, 0): lambda: theta * np.sin(phi),
+            (2, 0): lambda: theta * np.sin(phi),
+            (2, 1): lambda: theta * np.cos(phi),
+        }
+
+        update_map = {
+            (0, 2): lambda angle: (bend_radius * np.sin(angle), -bend_radius * np.cos(angle)),
+            (0, 1): lambda angle: (bend_radius * np.sin(angle), -bend_radius * np.cos(angle)),
+            (1, 2): lambda angle: (-bend_radius * np.cos(angle), bend_radius * np.sin(angle)),
+            (1, 0): lambda angle: (bend_radius * np.sin(angle), -bend_radius * np.cos(angle)),
+            (2, 0): lambda angle: (-bend_radius * np.cos(angle), bend_radius * np.sin(angle)),
+            (2, 1): lambda angle: (-bend_radius * np.cos(angle), bend_radius * np.sin(angle)),
+        }
+
+        if (self.normal_axis, self.bend_axis_3d) in angle_map:
+            angle = angle_map[(self.normal_axis, self.bend_axis_3d)]()
+            delta_u, delta_v = update_map[(self.normal_axis, self.bend_axis_3d)](angle)
+            bend_center[id_bend_u] = self.plane.center[id_bend_u] + delta_u
+            bend_center[id_bend_v] = self.plane.center[id_bend_v] + delta_v
+
+        return bend_center
 
     def _data_on_yee_grid(self) -> ModeSolverData:
         """Solve for all modes, and construct data with fields on the Yee grid."""
@@ -503,12 +931,16 @@ class ModeSolver(Tidy3dBaseModel):
 
         return mode_solver_data
 
-    def _colocate_data(self, mode_solver_data: ModeSolverData) -> ModeSolverData:
-        """Colocate data to Yee grid boundaries."""
+    def _get_colocation_coordinates(self) -> Dict[str, ArrayFloat1D]:
+        """Get colocation coordinates in the solver plane.
 
+        Returns:
+            colocate_coords (dict): Dictionary containing the colocation coordinates for each dimension.
+        """
         # Get colocation coordinates in the solver plane
         _, plane_dims = self.plane.pop_axis("xyz", self.normal_axis)
         colocate_coords = {}
+
         for dim, sym in zip(plane_dims, self.solver_symmetry):
             coords = self.grid_snapped.boundaries.to_dict[dim]
             if len(coords) > 2:
@@ -516,6 +948,13 @@ class ModeSolver(Tidy3dBaseModel):
                     colocate_coords[dim] = coords[1:-1]
                 else:
                     colocate_coords[dim] = coords[:-1]
+
+        return colocate_coords
+
+    def _colocate_data(self, mode_solver_data: ModeSolverData) -> ModeSolverData:
+        """Colocate data to Yee grid boundaries."""
+
+        colocate_coords = self._get_colocation_coordinates()
 
         # Colocate input data to new coordinates
         data_dict_colocated = {}
@@ -919,7 +1358,7 @@ class ModeSolver(Tidy3dBaseModel):
         # direction, so angle_theta has to be taken into account. The distance along the propagation
         # direction is the distance along the normal direction over cosine(theta).
         cos_theta = np.cos(mode_spec.angle_theta)
-        k_vec = 2 * np.pi * n_complex * n_complex.f / C_0 / cos_theta
+        k_vec = cos_theta * 2 * np.pi * n_complex * n_complex.f / C_0
         if direction == "-":
             k_vec *= -1
         phase_primal = np.exp(1j * k_vec * (normal_primal - normal_pos))
