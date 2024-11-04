@@ -150,11 +150,11 @@ class Tidy3dBaseModel(pydantic.BaseModel):
     def _post_init_validators(self) -> None:
         """Call validators taking ``self`` that get run after init, implement in subclasses."""
 
+    """
     def __init_subclass__(cls) -> None:
-        """Things that are done to each of the models."""
-
         cls.add_type_field()
         cls.generate_docstring()
+    """
 
     class Config:
         """Sets config for all :class:`Tidy3dBaseModel` objects.
