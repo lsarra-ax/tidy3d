@@ -11,7 +11,7 @@ import autograd.numpy as np
 import pydantic.v1 as pydantic
 import shapely
 import xarray as xr
-from matplotlib import patches
+# from matplotlib import patches
 
 from ...constants import LARGE_NUMBER, MICROMETER, RADIAN, fp_eps, inf
 from ...exceptions import (
@@ -23,8 +23,10 @@ from ...exceptions import (
 )
 from ...log import log
 from ...packaging import check_import, verify_packages_import
-from ..autograd import AutogradFieldMap, TracedCoordinate, TracedSize, get_static
-from ..autograd.derivative_utils import DerivativeInfo, integrate_within_bounds
+# from ..autograd import AutogradFieldMap, TracedCoordinate, TracedSize, get_static
+def get_static(v):
+    return v
+# from ..autograd.derivative_utils import DerivativeInfo, integrate_within_bounds
 from ..base import Tidy3dBaseModel, cached_property
 from ..transformation import RotationAroundAxis
 from ..types import (
@@ -1512,7 +1514,7 @@ class Geometry(Tidy3dBaseModel, ABC):
 class Centered(Geometry, ABC):
     """Geometry with a well defined center."""
 
-    center: TracedCoordinate = pydantic.Field(
+    center: Coordinate = pydantic.Field(
         (0.0, 0.0, 0.0),
         title="Center",
         description="Center of object in x, y, and z.",
@@ -1805,7 +1807,7 @@ class Box(SimplePlaneIntersection, Centered):
     >>> b = Box(center=(1,2,3), size=(2,2,2))
     """
 
-    size: TracedSize = pydantic.Field(
+    size: Size = pydantic.Field(
         ...,
         title="Size",
         description="Size in x, y, and z directions.",

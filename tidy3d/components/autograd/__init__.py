@@ -2,7 +2,7 @@ import autograd.numpy as anp
 from autograd.extend import VJPNode, register_notrace
 
 from .boxes import TidyArrayBox
-from .functions import interpn
+# from .functions import interpn
 from .types import (
     AutogradFieldMap,
     AutogradTraced,

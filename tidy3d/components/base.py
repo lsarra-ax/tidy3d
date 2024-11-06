@@ -17,15 +17,15 @@ import numpy as np
 import pydantic.v1 as pydantic
 import rich
 import xarray as xr
-import yaml
+# import yaml
 from autograd.builtins import dict as dict_ag
 from autograd.tracer import isbox
 from pydantic.v1.fields import ModelField
 
 from ..exceptions import FileError
 from ..log import log
-from .autograd.types import AutogradFieldMap, Box
-from .autograd.utils import get_static
+# from .autograd.types import AutogradFieldMap, Box
+# from .autograd.utils import get_static
 from .data.data_array import DATA_ARRAY_MAP, DataArray
 from .file_util import compress_file_to_gzip, extract_gzip_file
 from .types import TYPE_TAG_STR, ComplexNumber, Literal
@@ -184,7 +184,7 @@ class Tidy3dBaseModel(pydantic.BaseModel):
             np.ndarray: ndarray_encoder,
             complex: lambda x: ComplexNumber(real=x.real, imag=x.imag),
             xr.DataArray: DataArray._json_encoder,
-            Box: lambda x: x._value,
+            # Box: lambda x: x._value,
         }
         frozen = True
         allow_mutation = False
@@ -867,8 +867,8 @@ class Tidy3dBaseModel(pydantic.BaseModel):
                 val1 = dict1[key]
                 val2 = dict2[key]
 
-                val1 = get_static(val1)
-                val2 = get_static(val2)
+                # val1 = get_static(val1)
+                # val2 = get_static(val2)
 
                 # if one of val1 or val2 is None (exclusive OR)
                 if (val1 is None) != (val2 is None):
@@ -938,7 +938,7 @@ class Tidy3dBaseModel(pydantic.BaseModel):
 
     def strip_traced_fields(
         self, starting_path: tuple[str] = (), include_untraced_data_arrays: bool = False
-    ) -> AutogradFieldMap:
+    ):
         """Extract a dictionary mapping paths in the model to the data traced by ``autograd``.
 
         Parameters
@@ -992,7 +992,7 @@ class Tidy3dBaseModel(pydantic.BaseModel):
         # convert the resulting field_mapping to an autograd-traced dictionary
         return dict_ag(field_mapping)
 
-    def insert_traced_fields(self, field_mapping: AutogradFieldMap) -> Tidy3dBaseModel:
+    def insert_traced_fields(self, field_mapping) -> Tidy3dBaseModel:
         """Recursively insert a map of paths to autograd-traced fields into a copy of this obj."""
 
         self_dict = self.dict()

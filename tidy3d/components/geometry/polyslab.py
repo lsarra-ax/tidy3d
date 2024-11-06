@@ -9,15 +9,17 @@ from typing import List, Tuple
 import autograd.numpy as np
 import pydantic.v1 as pydantic
 import shapely
-from autograd.tracer import isbox
-from matplotlib import path
+# from autograd.tracer import isbox
+# from matplotlib import path
+# from autograd.tracer import isbox
+# from matplotlib import path
 
 from ...constants import LARGE_NUMBER, MICROMETER, fp_eps
 from ...exceptions import SetupError, ValidationError
 from ...log import log
 from ...packaging import verify_packages_import
-from ..autograd import AutogradFieldMap, TracedVertices, get_static
-from ..autograd.derivative_utils import DerivativeInfo
+# from ..autograd import AutogradFieldMap, TracedVertices, get_static
+# from ..autograd.derivative_utils import DerivativeInfo
 from ..base import cached_property, skip_if_fields_missing
 from ..types import (
     ArrayFloat2D,
@@ -68,7 +70,7 @@ class PolySlab(base.Planar):
         units=MICROMETER,
     )
 
-    vertices: TracedVertices = pydantic.Field(
+    vertices: ArrayFloat2D = pydantic.Field(
         ...,
         title="Vertices",
         description="List of (d1, d2) defining the 2 dimensional positions of the polygon "
@@ -81,7 +83,7 @@ class PolySlab(base.Planar):
     @staticmethod
     def make_shapely_polygon(vertices: ArrayLike) -> shapely.Polygon:
         """Make a shapely polygon from some vertices, first ensures they are untraced."""
-        vertices = get_static(vertices)
+        # vertices = get_static(vertices)
         return shapely.Polygon(vertices)
 
     @pydantic.validator("slab_bounds", always=True)
@@ -1386,7 +1388,7 @@ class PolySlab(base.Planar):
 
         return {("vertices",): vjp_vertices}
 
-    def compute_derivative_vertices(self, derivative_info: DerivativeInfo) -> TracedVertices:
+    def compute_derivative_vertices(self, derivative_info: DerivativeInfo) -> ArrayFloat2D:
         # derivative w.r.t each edge
 
         vertices = np.array(self.vertices)

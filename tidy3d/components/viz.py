@@ -6,10 +6,10 @@ from functools import wraps
 from html import escape
 from typing import Any
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import pydantic.v1 as pd
-from matplotlib.patches import ArrowStyle, PathPatch
-from matplotlib.path import Path
+# from matplotlib.patches import ArrowStyle, PathPatch
+# from matplotlib.path import Path
 from numpy import array, concatenate, inf, ones
 
 from ..exceptions import SetupError
@@ -137,7 +137,7 @@ STRUCTURE_EPS_CMAP = "gist_yarg"
 STRUCTURE_HEAT_COND_CMAP = "gist_yarg"
 
 # default arrow style
-arrow_style = ArrowStyle.Simple(head_length=12, head_width=9, tail_width=4)
+arrow_style = {}  # ArrowStyle.Simple(head_length=12, head_width=9, tail_width=4)
 
 
 """=================================================================================================

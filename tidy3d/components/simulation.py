@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Set, Tuple, Union
 
 import autograd.numpy as np
-import matplotlib as mpl
+# import matplotlib as mpl
 import pydantic.v1 as pydantic
 import xarray as xr
 
@@ -3070,7 +3070,7 @@ class Simulation(AbstractYeeGridSimulation):
                     raise SetupError("Diffraction monitors must not lie in a lossy medium.")
         return val
 
-    @pydantic.validator("grid_spec", always=True)
+    # @pydantic.validator("grid_spec", always=True)
     @skip_if_fields_missing(["medium", "sources", "structures"])
     def _warn_grid_size_too_small(cls, val, values):
         """Warn user if any grid size is too large compared to minimum wavelength in material."""
@@ -3131,7 +3131,7 @@ class Simulation(AbstractYeeGridSimulation):
 
         return val
 
-    @pydantic.validator("sources", always=True)
+    # @pydantic.validator("sources", always=True)
     @skip_if_fields_missing(["medium", "center", "size", "structures"])
     def _source_homogeneous_isotropic(cls, val, values):
         """Error if a plane wave or gaussian beam source is not in a homogeneous and isotropic

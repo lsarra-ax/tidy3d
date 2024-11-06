@@ -33,8 +33,8 @@ from ..constants import (
 )
 from ..exceptions import SetupError, ValidationError
 from ..log import log
-from .autograd.derivative_utils import DerivativeInfo, integrate_within_bounds
-from .autograd.types import AutogradFieldMap, TracedFloat, TracedPoleAndResidue, TracedPositiveFloat
+# from .autograd.derivative_utils import DerivativeInfo, integrate_within_bounds
+# from .autograd.types import AutogradFieldMap, TracedFloat, TracedPoleAndResidue, TracedPositiveFloat
 from .base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
 from .data.data_array import DATA_ARRAY_MAP, ScalarFieldDataArray, SpatialDataArray
 from .data.dataset import (
@@ -1529,11 +1529,11 @@ class Medium(AbstractMedium):
 
     """
 
-    permittivity: TracedFloat = pd.Field(
+    permittivity: float = pd.Field(
         1.0, ge=1.0, title="Permittivity", description="Relative permittivity.", units=PERMITTIVITY
     )
 
-    conductivity: TracedFloat = pd.Field(
+    conductivity: float = pd.Field(
         0.0,
         title="Conductivity",
         description="Electric conductivity. Defined such that the imaginary part of the complex "
@@ -2128,7 +2128,7 @@ class CustomMedium(AbstractCustomMedium):
             )
         return val
 
-    @pd.validator("permittivity", "conductivity", always=True)
+    # @pd.validator("permittivity", "conductivity", always=True)
     def _check_permittivity_conductivity_interpolate(cls, val, values, field):
         """Check that the custom medium 'SpatialDataArrays' can be interpolated."""
 
@@ -2872,14 +2872,14 @@ class PoleResidue(DispersiveMedium):
         * `Modeling dispersive material in FDTD <https://www.flexcompute.com/fdtd101/Lecture-5-Modeling-dispersive-material-in-FDTD/>`_
     """
 
-    eps_inf: TracedPositiveFloat = pd.Field(
+    eps_inf:float = pd.Field(
         1.0,
         title="Epsilon at Infinity",
         description="Relative permittivity at infinite frequency (:math:`\\epsilon_\\infty`).",
         units=PERMITTIVITY,
     )
 
-    poles: Tuple[TracedPoleAndResidue, ...] = pd.Field(
+    poles: Tuple[PoleAndResidue, ...] = pd.Field(
         (),
         title="Poles",
         description="Tuple of complex-valued (:math:`a_i, c_i`) poles for the model.",

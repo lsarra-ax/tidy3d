@@ -7,7 +7,7 @@ import json
 from typing import Callable, Dict
 
 import pydantic.v1 as pd
-import yaml
+# import yaml
 
 from .components.base import Tidy3dBaseModel
 from .exceptions import FileError, SetupError

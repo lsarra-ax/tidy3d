@@ -6,7 +6,7 @@ from autograd.extend import defjvp, defvjp, primitive
 from autograd.numpy.numpy_jvps import broadcast
 from autograd.numpy.numpy_vjps import unbroadcast_f
 from numpy.typing import NDArray
-from scipy.interpolate import RegularGridInterpolator
+# from scipy.interpolate import RegularGridInterpolator
 
 from .types import InterpolationType
 

@@ -7,7 +7,7 @@ from abc import ABC
 from typing import Any, Dict, List, Mapping, Union
 
 import autograd.numpy as anp
-import dask
+# import dask
 import h5py
 import numpy as np
 import pandas
@@ -29,7 +29,7 @@ from ...constants import (
     WATT,
 )
 from ...exceptions import DataError, FileError
-from ..autograd import TidyArrayBox, get_static, interpn, is_tidy_box
+from ..autograd import TidyArrayBox, get_static, is_tidy_box
 from ..types import Axis, Bound
 
 # maps the dimension names to their attributes

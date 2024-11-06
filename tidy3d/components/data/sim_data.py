@@ -16,7 +16,7 @@ import xarray as xr
 from ...constants import C_0, inf
 from ...exceptions import DataError, FileError, Tidy3dKeyError
 from ...log import log
-from ..autograd.utils import split_list
+# from ..autograd.utils import split_list
 from ..base import JSON_TAG, Tidy3dBaseModel
 from ..base_sim.data.sim_data import AbstractSimulationData
 from ..file_util import replace_values

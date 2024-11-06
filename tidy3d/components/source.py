@@ -883,7 +883,7 @@ class CustomFieldSource(FieldSource, PlanarSource):
                     return val
         raise SetupError("No tangential field found in the suppled 'field_dataset'.")
 
-    @pydantic.validator("field_dataset", always=True)
+    # @pydantic.validator("field_dataset", always=True)
     def _check_fields_interpolate(cls, val: FieldDataset) -> FieldDataset:
         """Checks whether the filds in 'field_dataset' can be interpolated."""
         if isinstance(val, FieldDataset):

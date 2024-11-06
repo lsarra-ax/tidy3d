@@ -9,7 +9,7 @@ except ImportError:
     from typing_extensions import Literal
 import autograd.numpy as np
 import pydantic.v1 as pydantic
-from matplotlib.axes import Axes
+# from matplotlib.axes import Axes
 from shapely.geometry.base import BaseGeometry
 from typing_extensions import Annotated
 
@@ -224,7 +224,7 @@ ObsGridArray = Union[Tuple[float, ...], ArrayFloat1D]
 
 """ plotting """
 
-Ax = Axes
+Ax = []
 PlotVal = Literal["real", "imag", "abs"]
 FieldVal = Literal["real", "imag", "abs", "abs^2", "phase"]
 RealFieldVal = Literal["real", "abs", "abs^2"]

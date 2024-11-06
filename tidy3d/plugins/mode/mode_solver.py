@@ -11,8 +11,8 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pydantic.v1 as pydantic
 import xarray as xr
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
+# from matplotlib.collections import PatchCollection
+# from matplotlib.patches import Rectangle
 
 from ...components.base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
 from ...components.boundary import PML, Absorber, Boundary, BoundarySpec, PECBoundary, StablePML

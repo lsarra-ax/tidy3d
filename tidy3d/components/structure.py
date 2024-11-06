@@ -12,9 +12,9 @@ import pydantic.v1 as pydantic
 
 from ..constants import MICROMETER
 from ..exceptions import SetupError, Tidy3dError, Tidy3dImportError
-from .autograd.derivative_utils import DerivativeInfo
-from .autograd.types import AutogradFieldMap, Box
-from .autograd.utils import get_static
+# from .autograd.derivative_utils import DerivativeInfo
+# from .autograd.types import AutogradFieldMap, Box
+# from .autograd.utils import get_static
 from .base import Tidy3dBaseModel, skip_if_fields_missing
 from .data.data_array import ScalarFieldDataArray
 from .geometry.polyslab import PolySlab

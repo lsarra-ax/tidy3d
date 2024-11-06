@@ -13,10 +13,10 @@ import shapely
 from ...constants import C_0, LARGE_NUMBER, MICROMETER
 from ...exceptions import SetupError, ValidationError
 from ...packaging import verify_packages_import
-from ..autograd import AutogradFieldMap, TracedSize1D
-from ..autograd.derivative_utils import DerivativeInfo
+# from ..autograd import AutogradFieldMap, TracedSize1D
+# from ..autograd.derivative_utils import DerivativeInfo
 from ..base import cached_property, skip_if_fields_missing
-from ..types import Axis, Bound, Coordinate, MatrixReal4x4, Shapely, Tuple
+from ..types import Axis, Bound, Coordinate, MatrixReal4x4, Shapely, Size1D, Tuple
 from . import base
 from .polyslab import PolySlab
 
@@ -195,7 +195,7 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
     """
 
     # Provide more explanations on where radius is defined
-    radius: TracedSize1D = pydantic.Field(
+    radius: Size1D = pydantic.Field(
         ...,
         title="Radius",
         description="Radius of geometry at the ``reference_plane``.",
