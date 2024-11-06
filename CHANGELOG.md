@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enabled the user to set the `ModeMonitor.colocate` field and changed to `True` by default (fields were actually already returned colocated even though this field was `False` previously).
 - More robust mode solver at radio frequencies.
 - Disallow very small polygons when subdividing 2D structures.
+- `CustomMedium` design regions require far less data when performing inverse design by reducing adjoint field monitor size for dims with one pixel.
+- Calling `.values` on `DataArray` no longer raises a `DeprecationWarning` during automatic differentiation.
+- `ModeMonitor` and `ModeSolverMonitor` now use the default `td.ModeSpec()` when `mode_spec` is not provided.
 
 ### Fixed
 - Significant speedup for field projection computations.
