@@ -15,13 +15,16 @@ from ....components.geometry.utils import (
 )
 from ....components.geometry.utils_2d import increment_float
 from ....components.grid.grid import Grid, YeeGrid
-from ....components.lumped_element import LumpedResistor
+from ....components.lumped_element import LinearLumpedElement, LumpedResistor, RLCNetwork
 from ....components.monitor import FieldMonitor
 from ....components.source import GaussianPulse, UniformCurrentSource
 from ....components.types import Axis, FreqArray
-from ....components.validators import assert_plane
+from ....components.validators import assert_line_or_plane
 from ....exceptions import SetupError, ValidationError
-from ...microwave import CurrentIntegralAxisAligned, VoltageIntegralAxisAligned
+from ...microwave import (
+    CurrentIntegralAxisAligned,
+    VoltageIntegralAxisAligned,
+)
 from .base_lumped import AbstractLumpedPort
 
 
@@ -53,7 +56,24 @@ class LumpedPort(AbstractLumpedPort, Box):
         "is always snapped to the grid along its injection axis.",
     )
 
-    _plane_validator = assert_plane()
+    distribute_along_voltage_axis: bool = pd.Field(
+        True,
+        title="Distribute Along Voltage Axis",
+        description="When enabled, the source and load are distributed along the "
+        "``voltage_axis`` of the ports's bounding box. Otherwise, the source and load "
+        "are restricted to one cell along the ``voltage_axis`` and PEC connections are "
+        "used to connect them to the edges of the port.",
+    )
+
+    distribute_along_lateral_axis: bool = pd.Field(
+        True,
+        title="Distribute Along Lateral Axis",
+        description="When enabled, the source and load are distributed along the "
+        "``lateral_axis`` of the ports's bounding box. Otherwise, the source and load "
+        "are restricted to one cell along the ``lateral_axis``. ",
+    )
+
+    _line_plane_validator = assert_line_or_plane()
 
     @cached_property
     def injection_axis(self):
@@ -108,14 +128,18 @@ class LumpedPort(AbstractLumpedPort, Box):
         center = list(self.center)
         if snap_center:
             center[self.injection_axis] = snap_center
-        return LumpedResistor(
+
+        network = RLCNetwork(resistance=np.real(self.impedance))
+        return LinearLumpedElement(
             center=center,
             size=self.size,
             num_grid_cells=self.num_grid_cells,
-            resistance=np.real(self.impedance),
+            network=network,
             name=f"{self.name}_resistor",
             voltage_axis=self.voltage_axis,
             snap_perimeter_to_grid=self.snap_perimeter_to_grid,
+            distribute_along_voltage_axis=self.distribute_along_voltage_axis,
+            distribute_along_lateral_axis=self.distribute_along_lateral_axis,
         )
 
     def to_voltage_monitor(
@@ -168,6 +192,7 @@ class LumpedPort(AbstractLumpedPort, Box):
             size[self.injection_axis] = dl
             size[self.voltage_axis] = 0.0
 
+        e_component = "xyz"[self.voltage_axis]
         h_component = "xyz"[self.current_axis]
         h_cap_component = "xyz"[self.injection_axis]
         # Create a current monitor
@@ -175,7 +200,7 @@ class LumpedPort(AbstractLumpedPort, Box):
             center=center,
             size=size,
             freqs=freqs,
-            fields=[f"H{h_component}", f"H{h_cap_component}"],
+            fields=[f"E{e_component}", f"H{h_component}", f"H{h_cap_component}"],
             name=self._current_monitor_name,
             colocate=False,
         )
@@ -218,7 +243,47 @@ class LumpedPort(AbstractLumpedPort, Box):
             extrapolate_to_endpoints=True,
             snap_contour_to_grid=True,
         )
-        return I_integral.compute_current(field_data)
+
+        # Compute displacement current
+        # vi_mon_data = field_data
+        # e_component = "xyz"[self.voltage_axis]
+        # hcap_component = "xyz"[self.injection_axis]
+        # field_name = f"E{e_component}"
+        # hcap_field_name = f"H{hcap_component}"
+        # e_field = vi_mon_data.field_components[field_name]
+        # hcap_field = vi_mon_data.field_components[hcap_field_name]
+        # box = self._to_load_box(sim_data.simulation.grid)
+
+        # coord1 = "xyz"[self.injection_axis]
+        # coord2 = "xyz"[self.voltage_axis]
+        # remaining_coords = {
+        #     coord1: self.center[self.injection_axis],
+        #     coord2: self.center[self.voltage_axis],
+        # }
+        # e_field = e_field.sel(
+        #     remaining_coords,
+        #     method="nearest",
+        #     drop=False,
+        # )
+        # coord3 = "xyz"[self.current_axis]
+        # e_field_slice = e_field.sel(
+        #     {coord3: slice(box.bounds[0][self.current_axis], box.bounds[1][self.current_axis])}
+        # )
+
+        # current_coords = hcap_field.coords[coord3].sel(
+        #     {coord3: slice(box.bounds[0][self.current_axis], box.bounds[1][self.current_axis])}
+        # )
+        # cell_widths = np.diff(current_coords.values)
+        # E_integrate = (
+        #     np.dot(np.transpose(e_field_slice.values), cell_widths) * box.size[self.injection_axis]
+        # )
+        # displacement = (
+        #     (-2 * 1j * np.pi * e_field.f.values)
+        #     * EPSILON_0
+        #     * 1.6004741813395027
+        #     * E_integrate.flatten()
+        # )
+        return I_integral.compute_current(field_data)  # - displacement
 
     def _check_grid_size(self, yee_grid: YeeGrid):
         """Raises :class:`SetupError` if the grid is too coarse at port locations"""
@@ -240,7 +305,7 @@ class LumpedPort(AbstractLumpedPort, Box):
         after it is snapped to the grid."""
         load = self.to_load()
         # This will included any snapping behavior the load undergoes
-        load_box = load.to_geometry(grid=grid)
+        load_box = load._create_box_for_network(grid=grid)
         return load_box
 
     def _to_voltage_box(self, grid: Grid) -> Box:
@@ -249,6 +314,7 @@ class LumpedPort(AbstractLumpedPort, Box):
         load_box = self._to_load_box(grid=grid)
         size = list(load_box.size)
         size[self.current_axis] = 0
+        size[self.injection_axis] = 0
         voltage_box = Box(center=load_box.center, size=size)
         return voltage_box
 

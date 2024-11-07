@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from math import isclose
 from typing import Annotated, Literal, Optional, Union
 
 import numpy as np
@@ -10,6 +11,7 @@ import pydantic.v1 as pd
 
 from ..components.grid.grid import Grid
 from ..components.medium import (
+    PEC2D,
     Debye,
     Drude,
     Lorentz,
@@ -19,13 +21,19 @@ from ..components.medium import (
 )
 from ..components.monitor import FieldMonitor
 from ..components.structure import MeshOverrideStructure, Structure
-from ..components.validators import assert_plane, validate_name_str
-from ..constants import EPSILON_0, FARAD, HENRY, MICROMETER, OHM
+from ..components.validators import assert_line_or_plane, assert_plane, validate_name_str
+from ..constants import EPSILON_0, FARAD, HENRY, MICROMETER, OHM, fp_eps
 from ..exceptions import ValidationError
 from .base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
-from .geometry.base import Box, ClipOperation, Geometry
+from .geometry.base import Box, ClipOperation, Geometry, GeometryGroup
 from .geometry.primitives import Cylinder
-from .geometry.utils import SnapBehavior, SnapLocation, SnappingSpec, snap_box_to_grid
+from .geometry.utils import (
+    SnapBehavior,
+    SnapLocation,
+    SnappingSpec,
+    snap_box_to_grid,
+    snap_point_to_grid,
+)
 from .geometry.utils_2d import increment_float
 from .types import TYPE_TAG_STR, Axis, Axis2D, Coordinate, FreqArray
 from .viz import PlotParams, plot_params_lumped_element
@@ -96,6 +104,8 @@ class RectangularLumpedElement(LumpedElement, Box):
         "boundary along their ``normal_axis``, regardless of this option.",
     )
 
+    _line_plane_validator = assert_line_or_plane()
+
     @cached_property
     def normal_axis(self):
         """Normal axis of the lumped element, which is the axis where the element has zero size."""
@@ -136,8 +146,6 @@ class RectangularLumpedElement(LumpedElement, Box):
         snap_location[self.lateral_axis] = SnapLocation.Center
         snap_behavior[self.lateral_axis] = SnapBehavior.Expand
         return SnappingSpec(location=snap_location, behavior=snap_behavior)
-
-    _plane_validator = assert_plane()
 
     def to_mesh_overrides(self) -> list[MeshOverrideStructure]:
         """Creates a suggested :class:`.MeshOverrideStructure` list that could be added to the
@@ -292,6 +300,8 @@ class LumpedResistor(RectangularLumpedElement):
             geometry=box,
             medium=Medium2D(**medium_dict),
         )
+
+    _plane_validator = assert_plane()
 
 
 class CoaxialLumpedResistor(LumpedElement):
@@ -884,11 +894,102 @@ class LinearLumpedElement(RectangularLumpedElement):
         discriminator=TYPE_TAG_STR,
     )
 
-    def to_structure(self, grid: Grid = None) -> Structure:
-        """Converts the :class:`LinearLumpedElement` object to a :class:`Structure`
-        ready to be added to the :class:`Simulation`"""
-        box = self.to_geometry(grid=grid)
-        medium_scaling_factor = self._admittance_transfer_function_scaling(box)
+    distribute_along_voltage_axis: bool = pd.Field(
+        True,
+        title="Distribute Along Voltage Axis",
+        description="When enabled, the network portion of the lumped element is distributed along the "
+        "``voltage_axis`` of the lumped element's bounding box. Otherwise, the network portion of the "
+        "lumped element is restricted to one cell along the ``voltage_axis`` and PEC connections are "
+        "used to connect the network cell to the edges of the lumped element.",
+    )
+
+    distribute_along_lateral_axis: bool = pd.Field(
+        True,
+        title="Distribute Along Lateral Axis",
+        description="When enabled, the network portion of the lumped element is distributed along the "
+        "``lateral_axis`` of the lumped element's bounding box. Otherwise, the network portion of the "
+        "lumped element is restricted to one cell along the ``lateral_axis``. ",
+    )
+
+    def _create_box_for_network(self, grid: Grid) -> Box:
+        """Creates a box for the network portion of the lumped element, where the equivalent
+        pole residue medium will be added.
+        """
+        # Snap center to closest grid position
+        snap_location = 3 * [SnapLocation.Boundary]
+        snap_location[self.voltage_axis] = SnapLocation.Center
+        cell_center = list(snap_point_to_grid(grid, self.center, snap_location))
+        size = [0, 0, 0]
+
+        if self.distribute_along_lateral_axis:
+            cell_center[self.lateral_axis] = self.center[self.lateral_axis]
+            size[self.lateral_axis] = self.size[self.lateral_axis]
+        if self.distribute_along_voltage_axis:
+            cell_center[self.voltage_axis] = self.center[self.voltage_axis]
+            size[self.voltage_axis] = self.size[self.voltage_axis]
+
+        cell_box = Box(center=cell_center, size=size)
+        # Now snap boundaries of box to positions on the grid
+        snap_behavior = 3 * [SnapBehavior.Expand]
+        snap_behavior[self.normal_axis] = SnapBehavior.Off
+        snap_location = 3 * [SnapLocation.Center]
+        snap_location[self.voltage_axis] = SnapLocation.Boundary
+        snap_spec = SnappingSpec(location=snap_location, behavior=snap_behavior)
+        return snap_box_to_grid(grid, cell_box, snap_spec=snap_spec)
+
+    def _create_connection_boxes(
+        self, cell_box: Box, grid: Grid
+    ) -> tuple[Optional[Box], Optional[Box]]:
+        """Creates PEC structures that connectm the network portion of the lumped element to the
+        boundaries of the lumped element.
+        """
+        element_box = self.to_geometry(grid)
+        element_min = list(element_box.bounds[0])
+        element_max = list(element_box.bounds[1])
+        cell_min = cell_box.bounds[0]
+        cell_max = cell_box.bounds[1]
+
+        top_min = list(element_min)
+        top_min[self.voltage_axis] = cell_max[self.voltage_axis]
+        bottom_max = list(element_max)
+        bottom_max[self.voltage_axis] = cell_min[self.voltage_axis]
+
+        # Create "wires" is the size is 0 along the lateral axis
+        if isclose(self.size[self.lateral_axis], 0, rel_tol=fp_eps, abs_tol=fp_eps):
+            lateral_center = cell_box.center[self.lateral_axis]
+            width = max(fp_eps, fp_eps * abs(lateral_center))
+            top_min[self.lateral_axis] = lateral_center - width
+            element_max[self.lateral_axis] = lateral_center + width
+            element_min[self.lateral_axis] = lateral_center - width
+            bottom_max[self.lateral_axis] = lateral_center + width
+
+        top_box = Box.from_bounds(top_min, element_max)
+        bottom_box = Box.from_bounds(element_min, bottom_max)
+
+        if top_box.size[self.voltage_axis] == 0:
+            top_box = None
+        if bottom_box.size[self.voltage_axis] == 0:
+            bottom_box = None
+        return (bottom_box, top_box)
+
+    @staticmethod
+    def compute_approximate_self_inductance(box: Box, voltage_axis: Axis) -> float:
+        """Helper to compute approximate self inductance of a cuboid."""
+        # (Equation 26) page 51 Radio Engineers' Handbook
+        length, transverse_sizes = Geometry.pop_axis(box.size, voltage_axis)
+        b_plus_c = transverse_sizes[0] + transverse_sizes[1]
+        log_term = (
+            2.303 * np.log10(2 * length / b_plus_c) + 0.5 + 0.2235 * np.log10(b_plus_c / length)
+        )
+        L0 = 0.00508 * (length / 25400) * log_term * 1e-6
+        return L0
+
+    def to_network_portion(self, grid) -> Structure:
+        """Converts the :class:`LinearLumpedElement` object to a :class:`Structure`,
+        which enforces the desired voltage-current relationship across one or more grid cells."""
+
+        cell_box = self._create_box_for_network(grid)
+        medium_scaling_factor = self._admittance_transfer_function_scaling(cell_box)
         medium = self.network._to_medium(medium_scaling_factor)
         components_2d = ["ss", "tt"]
         voltage_component = components_2d.pop(self._voltage_axis_2d)
@@ -898,9 +999,31 @@ class LinearLumpedElement(RectangularLumpedElement):
             other_component: Medium(permittivity=1),
         }
         return Structure(
-            geometry=box,
+            geometry=cell_box,
             medium=Medium2D(**medium_dict),
         )
+
+    def to_structure(self, grid) -> Optional[Structure]:
+        """Converts the :class:`LinearLumpedElement` object to a :class:`Structure`,
+        representing any PEC connections.
+        """
+
+        if not self.distribute_along_voltage_axis:
+            cell_box = self._create_box_for_network(grid)
+            connections = self._create_connection_boxes(cell_box, grid)
+            connections_filtered = [
+                connection for connection in connections if connection is not None
+            ]
+            if connections_filtered:
+                connection_group = GeometryGroup(geometries=connections_filtered)
+                structures = Structure(
+                    geometry=connection_group,
+                    medium=PEC2D,
+                )
+
+                return structures
+
+        return None
 
     def admittance(self, freqs: np.ndarray) -> np.ndarray:
         """Returns the admittance of this lumped element at the frequencies specified by ``freqs``.

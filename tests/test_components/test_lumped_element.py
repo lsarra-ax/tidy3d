@@ -181,7 +181,6 @@ def test_RLC_and_lumped_network_agreement(Rval, Lval, Cval, topology):
     )
     # Check conversion to geometry and to structure
     _ = linear_element.to_geometry()
-    _ = linear_element.to_structure()
 
     sf = linear_element._admittance_transfer_function_scaling()
     med_RLC = RLC._to_medium(sf)
@@ -207,7 +206,6 @@ def test_RLC_and_lumped_network_agreement(Rval, Lval, Cval, topology):
         network=network,
     )
     _ = linear_element.to_geometry()
-    _ = linear_element.to_structure()
     assert np.allclose(med_RLC.eps_model(freqs), med_network.eps_model(freqs), rtol=rtol)
 
 

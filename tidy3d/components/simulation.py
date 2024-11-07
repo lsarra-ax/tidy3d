@@ -38,7 +38,7 @@ from .geometry.utils import flatten_groups, traverse_geometries
 from .geometry.utils_2d import get_bounds, get_thickened_geom, snap_coordinate_to_grid, subdivide
 from .grid.grid import Coords, Coords1D, Grid
 from .grid.grid_spec import AutoGrid, GridSpec, UniformGrid
-from .lumped_element import LumpedElementType
+from .lumped_element import LinearLumpedElement, LumpedElementType
 from .medium import (
     AbstractCustomMedium,
     AbstractMedium,
@@ -1310,7 +1310,11 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
         # Convert lumped elements into structures
         lumped_structures = []
         for lumped_element in self.lumped_elements:
-            lumped_structures.append(lumped_element.to_structure(self.grid))
+            lumped_structure = lumped_element.to_structure(self.grid)
+            if lumped_structure is not None:
+                lumped_structures.append(lumped_structure)
+            if isinstance(lumped_element, LinearLumpedElement):
+                lumped_structures.append(lumped_element.to_network_portion(self.grid))
 
         # Begin volumetric structures grid
         all_structures = list(self.static_structures) + lumped_structures
