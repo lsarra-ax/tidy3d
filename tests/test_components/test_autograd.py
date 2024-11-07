@@ -41,7 +41,7 @@ TEST_POLYSLAB_SPEED = False
 
 # whether to run numerical gradient tests, off by default because it runs real simulations
 RUN_NUMERICAL = False
-_NUMERICAL_COMBINATION = ("size_element", "mode")
+_NUMERICAL_COMBINATION = ("polyslab", "mode")
 
 TEST_MODES = ("pipeline", "adjoint", "speed")
 TEST_MODE = "speed" if TEST_POLYSLAB_SPEED else "pipeline"
@@ -349,10 +349,11 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     xs = radii * anp.cos(phis)
     ys = radii * anp.sin(phis)
     vertices = anp.stack((xs, ys), axis=-1)
+    slab_bounds = (-0.5 * params_01, 0.5 * params_01)
     polyslab = td.Structure(
         geometry=td.PolySlab(
             vertices=vertices,
-            slab_bounds=(-0.5, 0.5),
+            slab_bounds=slab_bounds,
             axis=0,
             sidewall_angle=0.01,
             dilation=0.01,

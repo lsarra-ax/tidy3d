@@ -21,8 +21,7 @@ from .data.dataset import (
     UnstructuredGridDataset,
     _get_numpy_array,
 )
-from .geometry.base import Box, ClipOperation, GeometryGroup
-from .geometry.utils import flatten_groups, traverse_geometries
+from .geometry.base import Box
 from .grid.grid import Coords, Grid
 from .heat_charge_spec import ConductorSpec, SolidSpec
 from .medium import (
@@ -113,15 +112,15 @@ class Scene(Tidy3dBaseModel):
     def _validate_num_mediums(cls, val):
         """Error if too many mediums present."""
 
-        if val is None:
-            return val
+        # if val is None:
+        #     return val
 
-        mediums = {structure.medium for structure in val}
-        if len(mediums) > MAX_NUM_MEDIUMS:
-            raise SetupError(
-                f"Tidy3D only supports {MAX_NUM_MEDIUMS} distinct mediums."
-                f"{len(mediums)} were supplied."
-            )
+        # mediums = {structure.medium for structure in val}
+        # if len(mediums) > MAX_NUM_MEDIUMS:
+        #     raise SetupError(
+        #         f"Tidy3D only supports {MAX_NUM_MEDIUMS} distinct mediums."
+        #         f"{len(mediums)} were supplied."
+        #     )
 
         return val
 
@@ -129,22 +128,22 @@ class Scene(Tidy3dBaseModel):
     def _validate_num_geometries(cls, val):
         """Error if too many geometries in a single structure."""
 
-        if val is None:
-            return val
+        # if val is None:
+        #     return val
 
-        for i, structure in enumerate(val):
-            for geometry in flatten_groups(structure.geometry, flatten_transformed=True):
-                count = sum(
-                    1
-                    for g in traverse_geometries(geometry)
-                    if not isinstance(g, (GeometryGroup, ClipOperation))
-                )
-                if count > MAX_GEOMETRY_COUNT:
-                    raise SetupError(
-                        f"Structure at 'structures[{i}]' has {count} geometries that cannot be "
-                        f"flattened. A maximum of {MAX_GEOMETRY_COUNT} is supported due to "
-                        f"preprocessing performance."
-                    )
+        # for i, structure in enumerate(val):
+        #     for geometry in flatten_groups(structure.geometry, flatten_transformed=True):
+        #         count = sum(
+        #             1
+        #             for g in traverse_geometries(geometry)
+        #             if not isinstance(g, (GeometryGroup, ClipOperation))
+        #         )
+        #         if count > MAX_GEOMETRY_COUNT:
+        #             raise SetupError(
+        #                 f"Structure at 'structures[{i}]' has {count} geometries that cannot be "
+        #                 f"flattened. A maximum of {MAX_GEOMETRY_COUNT} is supported due to "
+        #                 f"preprocessing performance."
+        #             )
 
         return val
 

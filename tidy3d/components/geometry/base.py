@@ -11,6 +11,7 @@ import autograd.numpy as np
 import pydantic.v1 as pydantic
 import shapely
 import xarray as xr
+from autograd.tracer import getval
 from matplotlib import patches
 
 from ...constants import LARGE_NUMBER, MICROMETER, RADIAN, fp_eps, inf
@@ -295,8 +296,8 @@ class Geometry(Tidy3dBaseModel, ABC):
             Whether the rectangular bounding boxes of the two geometries intersect.
         """
 
-        self_bmin, self_bmax = self.bounds
-        other_bmin, other_bmax = other.bounds
+        self_bmin, self_bmax = getval(self.bounds)
+        other_bmin, other_bmax = getval(other.bounds)
 
         for smin, omin, smax, omax, strict in zip(
             self_bmin, other_bmin, self_bmax, other_bmax, strict_inequality

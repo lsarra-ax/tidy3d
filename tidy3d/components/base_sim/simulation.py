@@ -5,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
-import autograd.numpy as anp
 import pydantic.v1 as pd
 
 from ...exceptions import Tidy3dKeyError
@@ -135,35 +134,35 @@ class AbstractSimulation(Box, ABC):
     _unique_source_names = assert_unique_names("sources")
 
     _monitors_in_bounds = assert_objects_in_sim_bounds("monitors", strict_inequality=True)
-    _structures_in_bounds = assert_objects_in_sim_bounds("structures", error=False)
+    # _structures_in_bounds = assert_objects_in_sim_bounds("structures", error=False)
 
     @pd.validator("structures", always=True)
     @skip_if_fields_missing(["size", "center"])
     def _structures_not_at_edges(cls, val, values):
         """Warn if any structures lie at the simulation boundaries."""
 
-        if val is None:
-            return val
+        # if val is None:
+        #     return val
 
-        sim_box = Box(size=values.get("size"), center=values.get("center"))
-        sim_bound_min, sim_bound_max = sim_box.bounds
-        sim_bounds = list(sim_bound_min) + list(sim_bound_max)
+        # sim_box = Box(size=values.get("size"), center=values.get("center"))
+        # sim_bound_min, sim_bound_max = sim_box.bounds
+        # sim_bounds = list(sim_bound_min) + list(sim_bound_max)
 
-        with log as consolidated_logger:
-            for istruct, structure in enumerate(val):
-                struct_bound_min, struct_bound_max = structure.geometry.bounds
-                struct_bounds = list(struct_bound_min) + list(struct_bound_max)
+        # with log as consolidated_logger:
+        #     for istruct, structure in enumerate(val):
+        #         struct_bound_min, struct_bound_max = structure.geometry.bounds
+        #         struct_bounds = list(struct_bound_min) + list(struct_bound_max)
 
-                for sim_val, struct_val in zip(sim_bounds, struct_bounds):
-                    if anp.isclose(sim_val, struct_val):
-                        consolidated_logger.warning(
-                            f"Structure at 'structures[{istruct}]' has bounds that extend exactly "
-                            "to simulation edges. This can cause unexpected behavior. "
-                            "If intending to extend the structure to infinity along one dimension, "
-                            "use td.inf as a size variable instead to make this explicit.",
-                            custom_loc=["structures", istruct],
-                        )
-                        continue
+        #         for sim_val, struct_val in zip(sim_bounds, struct_bounds):
+        #             if anp.isclose(sim_val, struct_val):
+        #                 consolidated_logger.warning(
+        #                     f"Structure at 'structures[{istruct}]' has bounds that extend exactly "
+        #                     "to simulation edges. This can cause unexpected behavior. "
+        #                     "If intending to extend the structure to infinity along one dimension, "
+        #                     "use td.inf as a size variable instead to make this explicit.",
+        #                     custom_loc=["structures", istruct],
+        #                 )
+        #                 continue
 
         return val
 

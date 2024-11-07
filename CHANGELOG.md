@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autograd support for simulations without adjoint sources in `run` as well as `run_async`, which will not attempt to run the simulation but instead return zero gradients. This can sometimes occur if the objective function gradient does not depend on some simulations, for example when using `min` or `max` in the objective.
 
 - Support for differentiation with respect to `PolySlab.slab_bounds` and `PolySlab.dilation`.
+- Support for differentiation with respect to `PolySlab.slab_bounds`.
 
 ### Changed
 - `CustomMedium` design regions require far less data when performing inverse design by reducing adjoint field monitor size for dims with one pixel.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import pathlib
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import autograd.numpy as np
@@ -34,7 +35,7 @@ from .data.data_array import FreqDataArray
 from .data.dataset import CustomSpatialDataType, Dataset
 from .geometry.base import Box, Geometry
 from .geometry.mesh import TriangleMesh
-from .geometry.utils import flatten_groups, traverse_geometries
+from .geometry.utils import traverse_geometries
 from .geometry.utils_2d import get_bounds, get_thickened_geom, snap_coordinate_to_grid, subdivide
 from .grid.grid import Coords, Coords1D, Grid
 from .grid.grid_spec import AutoGrid, GridSpec, UniformGrid
@@ -2610,23 +2611,23 @@ class Simulation(AbstractYeeGridSimulation):
     def _validate_2d_geometry_has_2d_medium(cls, val, values):
         """Warn if a geometry bounding box has zero size in a certain dimension."""
 
-        if val is None:
-            return val
+        # if val is None:
+        #     return val
 
-        with log as consolidated_logger:
-            for i, structure in enumerate(val):
-                if isinstance(structure.medium, Medium2D):
-                    continue
-                for geom in flatten_groups(structure.geometry):
-                    zero_dims = geom.zero_dims
-                    if len(zero_dims) > 0:
-                        consolidated_logger.warning(
-                            f"Structure at 'structures[{i}]' has geometry with zero size along "
-                            f"dimensions {zero_dims}, and with a medium that is not a 'Medium2D'. "
-                            "This is probably not correct, since the resulting simulation will "
-                            "depend on the details of the numerical grid. Consider either "
-                            "giving the geometry a nonzero thickness or using a 'Medium2D'."
-                        )
+        # with log as consolidated_logger:
+        #     for i, structure in enumerate(val):
+        #         if isinstance(structure.medium, Medium2D):
+        #             continue
+        #         for geom in flatten_groups(structure.geometry):
+        #             zero_dims = geom.zero_dims
+        #             if len(zero_dims) > 0:
+        #                 consolidated_logger.warning(
+        #                     f"Structure at 'structures[{i}]' has geometry with zero size along "
+        #                     f"dimensions {zero_dims}, and with a medium that is not a 'Medium2D'. "
+        #                     "This is probably not correct, since the resulting simulation will "
+        #                     "depend on the details of the numerical grid. Consider either "
+        #                     "giving the geometry a nonzero thickness or using a 'Medium2D'."
+        #                 )
 
         return val
 
@@ -2665,57 +2666,57 @@ class Simulation(AbstractYeeGridSimulation):
     def _structures_not_close_pml(cls, val, values):
         """Warn if any structures lie at the simulation boundaries."""
 
-        sim_box = Box(size=values.get("size"), center=values.get("center"))
-        sim_bound_min, sim_bound_max = sim_box.bounds
+        # sim_box = Box(size=values.get("size"), center=values.get("center"))
+        # sim_bound_min, sim_bound_max = sim_box.bounds
 
-        boundaries = val.to_list
-        structures = values.get("structures")
-        sources = values.get("sources")
+        # boundaries = val.to_list
+        # structures = values.get("structures")
+        # sources = values.get("sources")
 
-        if (not structures) or (not sources):
-            return val
+        # if (not structures) or (not sources):
+        #     return val
 
-        with log as consolidated_logger:
+        # with log as consolidated_logger:
 
-            def warn(istruct, side):
-                """Warning message for a structure too close to PML."""
-                consolidated_logger.warning(
-                    f"Structure at structures[{istruct}] was detected as being less "
-                    f"than half of a central wavelength from a PML on side {side}. "
-                    "To avoid inaccurate results or divergence, please increase gap between "
-                    "any structures and PML or fully extend structure through the pml.",
-                    custom_loc=["structures", istruct],
-                )
+        #     def warn(istruct, side):
+        #         """Warning message for a structure too close to PML."""
+        #         consolidated_logger.warning(
+        #             f"Structure at structures[{istruct}] was detected as being less "
+        #             f"than half of a central wavelength from a PML on side {side}. "
+        #             "To avoid inaccurate results or divergence, please increase gap between "
+        #             "any structures and PML or fully extend structure through the pml.",
+        #             custom_loc=["structures", istruct],
+        #         )
 
-            for istruct, structure in enumerate(structures):
-                struct_bound_min, struct_bound_max = structure.geometry.bounds
+        #     for istruct, structure in enumerate(structures):
+        #         struct_bound_min, struct_bound_max = structure.geometry.bounds
 
-                for source in sources:
-                    lambda0 = C_0 / source.source_time.freq0
+        #         for source in sources:
+        #             lambda0 = C_0 / source.source_time.freq0
 
-                    zipped = zip(["x", "y", "z"], sim_bound_min, struct_bound_min, boundaries)
-                    for axis, sim_val, struct_val, boundary in zipped:
-                        # The test is required only for PML and stable PML
-                        if not isinstance(boundary[0], (PML, StablePML)):
-                            continue
-                        if (
-                            boundary[0].num_layers > 0
-                            and struct_val > sim_val
-                            and abs(sim_val - struct_val) < lambda0 / 2
-                        ):
-                            warn(istruct, axis + "-min")
+        #             zipped = zip(["x", "y", "z"], sim_bound_min, struct_bound_min, boundaries)
+        #             for axis, sim_val, struct_val, boundary in zipped:
+        #                 # The test is required only for PML and stable PML
+        #                 if not isinstance(boundary[0], (PML, StablePML)):
+        #                     continue
+        #                 if (
+        #                     boundary[0].num_layers > 0
+        #                     and struct_val > sim_val
+        #                     and abs(sim_val - struct_val) < lambda0 / 2
+        #                 ):
+        #                     warn(istruct, axis + "-min")
 
-                    zipped = zip(["x", "y", "z"], sim_bound_max, struct_bound_max, boundaries)
-                    for axis, sim_val, struct_val, boundary in zipped:
-                        # The test is required only for PML and stable PML
-                        if not isinstance(boundary[1], (PML, StablePML)):
-                            continue
-                        if (
-                            boundary[1].num_layers > 0
-                            and struct_val < sim_val
-                            and abs(sim_val - struct_val) < lambda0 / 2
-                        ):
-                            warn(istruct, axis + "-max")
+        #             zipped = zip(["x", "y", "z"], sim_bound_max, struct_bound_max, boundaries)
+        #             for axis, sim_val, struct_val, boundary in zipped:
+        #                 # The test is required only for PML and stable PML
+        #                 if not isinstance(boundary[1], (PML, StablePML)):
+        #                     continue
+        #                 if (
+        #                     boundary[1].num_layers > 0
+        #                     and struct_val < sim_val
+        #                     and abs(sim_val - struct_val) < lambda0 / 2
+        #                 ):
+        #                     warn(istruct, axis + "-max")
 
         return val
 
@@ -3749,15 +3750,17 @@ class Simulation(AbstractYeeGridSimulation):
     def with_adjoint_monitors(self, sim_fields_keys: list) -> Simulation:
         """Copy of self with adjoint field and permittivity monitors for every traced structure."""
 
-        # set of indices in the structures needing adjoint monitors
-        structure_indices = {index for (_, index, *_) in sim_fields_keys}
-
-        mnts_fld, mnts_eps = self.make_adjoint_monitors(structure_indices=structure_indices)
+        mnts_fld, mnts_eps = self.make_adjoint_monitors(sim_fields_keys=sim_fields_keys)
         monitors = list(self.monitors) + list(mnts_fld) + list(mnts_eps)
         return self.copy(update=dict(monitors=monitors))
 
-    def make_adjoint_monitors(self, structure_indices: set[int]) -> tuple[list, list]:
+    def make_adjoint_monitors(self, sim_fields_keys: list) -> tuple[list, list]:
         """Get lists of field and permittivity monitors for this simulation."""
+
+        index_to_keys = defaultdict(list)
+
+        for _, index, *fields in sim_fields_keys:
+            index_to_keys[index].append(fields)
 
         freqs = self.freqs_adjoint
 
@@ -3765,10 +3768,12 @@ class Simulation(AbstractYeeGridSimulation):
         adjoint_monitors_eps = []
 
         # make a field and permittivity monitor for every structure needing one
-        for i in structure_indices:
+        for i, field_keys in index_to_keys.items():
             structure = self.structures[i]
 
-            mnt_fld, mnt_eps = structure.make_adjoint_monitors(freqs=freqs, index=i)
+            mnt_fld, mnt_eps = structure.make_adjoint_monitors(
+                freqs=freqs, index=i, field_keys=field_keys
+            )
 
             adjoint_monitors_fld.append(mnt_fld)
             adjoint_monitors_eps.append(mnt_eps)

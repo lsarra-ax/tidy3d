@@ -245,7 +245,7 @@ class Structure(AbstractStructure):
         return monitor_name_map[data_type]
 
     def make_adjoint_monitors(
-        self, freqs: list[float], index: int
+        self, freqs: list[float], index: int, field_keys: list[str]
     ) -> (FieldMonitor, PermittivityMonitor):
         """Generate the field and permittivity monitor for this structure."""
 
@@ -258,7 +258,7 @@ class Structure(AbstractStructure):
         center = [get_static(x) for x in box.center]
 
         # polyslab only needs fields at the midpoint along axis
-        if isinstance(geometry, PolySlab) and not isinstance(self.medium, AbstractCustomMedium):
+        if isinstance(geometry, PolySlab) and not isinstance(self.medium, AbstractCustomMedium) and ["geometry", "slab_bounds"] not in field_keys:
             size[geometry.axis] = 0
 
         mnt_fld = FieldMonitor(
