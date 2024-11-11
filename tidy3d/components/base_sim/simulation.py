@@ -188,7 +188,7 @@ class AbstractSimulation(Box, ABC):
 
     def get_monitor_by_name(self, name: str) -> AbstractMonitor:
         """Return monitor named 'name'."""
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             if monitor.name == name:
                 return monitor
         raise Tidy3dKeyError(f"No monitor named '{name}'")
@@ -361,7 +361,7 @@ class AbstractSimulation(Box, ABC):
             The supplied or created matplotlib axes.
         """
         bounds = self.bounds
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             ax = monitor.plot(x=x, y=y, z=z, alpha=alpha, ax=ax, sim_bounds=bounds)
         ax = Scene._set_plot_bounds(
             bounds=self.simulation_bounds, ax=ax, x=x, y=y, z=z, hlim=hlim, vlim=vlim
@@ -671,3 +671,9 @@ class AbstractSimulation(Box, ABC):
             medium=scene.medium,
             **kwargs,
         )
+
+    @cached_property
+    def _internal_monitors(self) -> Tuple[None, ...]:
+        """Generate a tuple of all monitors wherein any monitors that are generated for
+        internal use are added to the list of user-supplied monitors."""
+        return self.monitors

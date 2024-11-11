@@ -743,7 +743,7 @@ def test_nyquist():
     # fake a scenario where the fmax of the simulation is negative?
     class MockSim:
         frequency_range = (-2, -1)
-        monitors = ()
+        _internal_monitors = ()
         _cached_properties = {}
 
     m = MockSim()

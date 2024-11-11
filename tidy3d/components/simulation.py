@@ -85,7 +85,10 @@ from .source import (
 from .structure import MeshOverrideStructure, Structure
 from .subpixel_spec import SubpixelSpec
 from .types import TYPE_TAG_STR, Ax, Axis, FreqBound, InterpMethod, Literal, Symmetry, annotate_type
-from .validators import assert_objects_in_sim_bounds, validate_mode_objects_symmetry
+from .validators import (
+    assert_objects_in_sim_bounds,
+    validate_mode_objects_symmetry,
+)
 from .viz import (
     PlotParams,
     add_ax_if_none,
@@ -1286,7 +1289,7 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
             snapped_center = snap_coordinate_to_grid(self.grid, center, axis)
             return geom._update_from_bounds(bounds=(snapped_center, snapped_center), axis=axis)
 
-        # Convert lumped elements into structures
+        # Convert lumped elements into structures and add monitors if desired
         lumped_structures = []
         for lumped_element in self.lumped_elements:
             lumped_structures.append(lumped_element.to_structure(self.grid))
@@ -1343,6 +1346,27 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
         """Generate a tuple of structures wherein any 2D materials are converted to 3D
         volumetric equivalents."""
         return self._volumetric_structures_grid(self.grid)
+
+    def _internal_monitors_grid(self, grid: Grid) -> Tuple[Monitor]:
+        """Generate a tuple of all monitors wherein any monitors that are generated for
+        internal use are added to the list of user-supplied monitors."""
+        # Add monitors around lumped elements if desired
+        internal_monitors = list(self.monitors)
+        for lumped_element in self.lumped_elements:
+            if lumped_element.monitor_freqs is not None:
+                internal_monitors.append(
+                    lumped_element.to_monitor(freqs=lumped_element.monitor_freqs, grid=grid)
+                )
+        #  Would be nice to be able to run these validators on the generated monitors.
+        # _unique_monitor_names = assert_unique_names("monitors")
+        # _monitors_in_bounds = assert_objects_in_sim_bounds("monitors", strict_inequality=True)
+        return tuple(internal_monitors)
+
+    @cached_property
+    def _internal_monitors(self) -> Tuple[Monitor]:
+        """Generate a tuple of all monitors wherein any monitors that are generated for
+        internal use are added to the list of user-supplied monitors."""
+        return self._internal_monitors_grid(self.grid)
 
     def suggest_mesh_overrides(self, **kwargs) -> List[MeshOverrideStructure]:
         """Generate a :class:.`MeshOverrideStructure` `List` which is automatically generated
@@ -3395,7 +3419,7 @@ class Simulation(AbstractYeeGridSimulation):
 
         # Some monitors store much less data than what is needed internally. Make sure that the
         # internal storage also does not exceed the limit.
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             num_cells = self._monitor_num_cells(monitor)
             # intermediate storage needed, in GB
             solver_data = monitor._storage_size_solver(num_cells=num_cells, tmesh=self.tmesh) / 1e9
@@ -3439,7 +3463,7 @@ class Simulation(AbstractYeeGridSimulation):
                     warn_mode_size(monitor=monitor, msg_header=msg_header, custom_loc=custom_loc)
 
         with log as consolidated_logger:
-            for mnt_ind, monitor in enumerate(self.monitors):
+            for mnt_ind, monitor in enumerate(self._internal_monitors):
                 if isinstance(monitor, AbstractModeMonitor):
                     msg_header = f"Mode monitor '{monitor.name}' "
                     custom_loc = ["monitors", mnt_ind]
@@ -3470,14 +3494,14 @@ class Simulation(AbstractYeeGridSimulation):
                 msg_header = f"Mode source '{source.name}' "
                 check_num_cells(source, source.injection_axis, msg_header)
 
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             if isinstance(monitor, ModeMonitor):
                 msg_header = f"Mode monitor '{monitor.name}' "
                 check_num_cells(monitor, monitor.normal_axis, msg_header)
 
     def _validate_time_monitors_num_steps(self) -> None:
         """Raise an error if non-0D time monitors have too many time steps."""
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             if not isinstance(monitor, FieldTimeMonitor) or len(monitor.zero_dims) == 3:
                 continue
             num_time_steps = monitor.num_steps(self.tmesh)
@@ -3499,7 +3523,7 @@ class Simulation(AbstractYeeGridSimulation):
     def monitors_data_size(self) -> Dict[str, float]:
         """Dictionary mapping monitor names to their estimated storage size in bytes."""
         data_size = {}
-        for monitor in self.monitors:
+        for monitor in self._internal_monitors:
             num_cells = self._monitor_num_cells(monitor)
             storage_size = float(monitor.storage_size(num_cells=num_cells, tmesh=self.tmesh))
             data_size[monitor.name] = storage_size
@@ -3601,7 +3625,7 @@ class Simulation(AbstractYeeGridSimulation):
         dynamically computed run_time e.g. through a ``_run_time`` cached property.
         """
         with log as consolidated_logger:
-            for monitor in self.monitors:
+            for monitor in self._internal_monitors:
                 if isinstance(monitor, TimeMonitor) and monitor.start > self._run_time:
                     consolidated_logger.warning(
                         f"Monitor {monitor.name} has a start time {monitor.start:1.2e}s exceeding"
@@ -3617,7 +3641,7 @@ class Simulation(AbstractYeeGridSimulation):
         structure_indices = {index for (_, index, *_) in sim_fields_keys}
 
         mnts_fld, mnts_eps = self.make_adjoint_monitors(structure_indices=structure_indices)
-        monitors = list(self.monitors) + list(mnts_fld) + list(mnts_eps)
+        monitors = list(self._internal_monitors) + list(mnts_fld) + list(mnts_eps)
         return self.copy(update=dict(monitors=monitors))
 
     def make_adjoint_monitors(self, structure_indices: set[int]) -> tuple[list, list]:
@@ -3644,7 +3668,7 @@ class Simulation(AbstractYeeGridSimulation):
         """Unique list of all frequencies. For now should be only one."""
 
         freqs = set()
-        for mnt in self.monitors:
+        for mnt in self._internal_monitors:
             if isinstance(mnt, FreqMonitor):
                 freqs.update(mnt.freqs)
         freqs = sorted(freqs)
@@ -4372,7 +4396,7 @@ class Simulation(AbstractYeeGridSimulation):
         freq_monitor_max = max(
             (
                 monitor.frequency_range[1]
-                for monitor in self.monitors
+                for monitor in self._internal_monitors
                 if isinstance(monitor, FreqMonitor) and not isinstance(monitor, PermittivityMonitor)
             ),
             default=0.0,

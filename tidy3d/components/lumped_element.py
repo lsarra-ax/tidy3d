@@ -20,7 +20,7 @@ from ..components.medium import (
 from ..components.monitor import FieldMonitor
 from ..components.structure import MeshOverrideStructure, Structure
 from ..components.validators import assert_plane, validate_name_str
-from ..constants import EPSILON_0, FARAD, HENRY, MICROMETER, OHM
+from ..constants import EPSILON_0, FARAD, HENRY, HERTZ, MICROMETER, OHM
 from ..exceptions import ValidationError
 from .base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
 from .geometry.base import Box, ClipOperation, Geometry
@@ -94,6 +94,14 @@ class RectangularLumpedElement(LumpedElement, Box):
         "perpendicular to the ``voltage_axis`` are snapped to grid boundaries, while the sides parallel to the "
         "``voltage_axis`` are snapped to grid centers. Lumped elements are always snapped to the nearest grid "
         "boundary along their ``normal_axis``, regardless of this option.",
+    )
+
+    monitor_freqs: Optional[FreqArray] = pd.Field(
+        None,
+        title="Monitor Frequencies",
+        description="When set, monitors are added to the simulation that enable the calculation of the"
+        "voltage and current at the specified frequencies.",
+        units=HERTZ,
     )
 
     @cached_property
@@ -187,7 +195,7 @@ class RectangularLumpedElement(LumpedElement, Box):
     def to_geometry(self, grid: Grid = None) -> Box:
         """Converts the :class:`RectangularLumpedElement` object to a :class:`.Box`."""
         box = Box(size=self.size, center=self.center)
-        if grid and self.snap_perimeter_to_grid:
+        if grid is not None and self.snap_perimeter_to_grid:
             return snap_box_to_grid(grid, box, self._snapping_spec)
         return box
 
@@ -216,17 +224,17 @@ class RectangularLumpedElement(LumpedElement, Box):
         # The final scaling along the normal axis is applied when the resulting 2D medium is averaged with the background media.
         return size_voltage / size_lateral
 
-    def to_monitor(self, freqs: FreqArray) -> FieldMonitor:
+    def to_monitor(self, freqs: FreqArray, grid: Grid = None) -> FieldMonitor:
         """Creates a field monitor that can be added to the simulation, which records field data
         that can be used to later compute voltage and current flowing through the element.
         """
+        box = self.to_geometry(grid)
 
-        center = list(self.center)
         # Size of monitor needs to be nonzero along the normal axis so that the magnetic field on
-        # both sides of the sheet will be available
-        mon_size = list(self.size)
+        # both sides of the sheet will be available. If snapping is used,
+        mon_size = list(box.size)
         mon_size[self.normal_axis] = 2 * (
-            increment_float(center[self.normal_axis], 1.0) - center[self.normal_axis]
+            increment_float(box.center[self.normal_axis], 1.0) - box.center[self.normal_axis]
         )
 
         e_component = "xyz"[self.voltage_axis]
@@ -234,7 +242,7 @@ class RectangularLumpedElement(LumpedElement, Box):
         h2_component = "xyz"[self.normal_axis]
         # Create a voltage monitor
         return FieldMonitor(
-            center=center,
+            center=box.center,
             size=mon_size,
             freqs=freqs,
             fields=[f"E{e_component}", f"H{h1_component}", f"H{h2_component}"],
