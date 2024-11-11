@@ -1092,8 +1092,12 @@ class Tidy3dBaseModel(pydantic.BaseModel):
             data_type = field._type_display()
 
             # get default values
+            field_info = field.field_info
             default_val = field.get_default()
-            if "=" in str(default_val):
+            if field_info.default_factory is not None:
+                # handle default_factory
+                default_val = f"{field_info.default_factory.__name__}()"
+            elif "=" in str(default_val):
                 # handle cases where default values are pydantic models
                 default_val = f"{default_val.__class__.__name__}({default_val})"
                 default_val = (", ").join(default_val.split(" "))
@@ -1103,7 +1107,6 @@ class Tidy3dBaseModel(pydantic.BaseModel):
             doc += f"    {field_name} : {data_type}{default_str}\n"
 
             # get field metadata
-            field_info = field.field_info
             doc += "        "
 
             # add units (if present)
