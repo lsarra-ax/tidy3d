@@ -202,7 +202,7 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
         units=MICROMETER,
     )
 
-    length: pydantic.NonNegativeFloat = pydantic.Field(
+    length: TracedSize1D = pydantic.Field(
         ...,
         title="Length",
         description="Defines thickness of cylinder along axis dimension.",
@@ -295,10 +295,14 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
         # construct equivalent polyslab and compute the derivatives
         polyslab = self.to_polyslab(num_pts_circumference=num_pts_circumference)
 
-        derivative_info_polyslab = derivative_info.updated_copy(paths=[("vertices",)], deep=False)
+        derivative_info_polyslab = derivative_info.updated_copy(
+            paths=[("vertices",), ("slab_bounds", 0), ("slab_bounds", 1)], deep=False
+        )
         vjps_polyslab = polyslab.compute_derivatives(derivative_info_polyslab)
 
         vjps_vertices_xs, vjps_vertices_ys = vjps_polyslab[("vertices",)].T
+        vjp_top = vjps_polyslab[("slab_bounds", 0)]
+        vjp_bot = vjps_polyslab[("slab_bounds", 1)]
 
         # transform polyslab vertices derivatives into Cylinder parameter derivatives
         xs_, ys_ = self._points_unit_circle(num_pts_circumference=num_pts_circumference)
@@ -307,6 +311,9 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
 
         vjps = {}
         for path in derivative_info.paths:
+            if path == ("length",):
+                vjps[path] = vjp_top - vjp_bot
+
             if path == ("radius",):
                 vjps[path] = vjp_xs + vjp_ys
 
