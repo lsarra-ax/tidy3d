@@ -314,7 +314,7 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
             if path == ("length",):
                 vjps[path] = vjp_top - vjp_bot
 
-            if path == ("radius",):
+            elif path == ("radius",):
                 vjps[path] = vjp_xs + vjp_ys
 
             elif "center" in path:

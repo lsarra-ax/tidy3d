@@ -876,22 +876,22 @@ def test_autograd_speed_num_structures(use_emulated_run):
 def test_autograd_polyslab_cylinder(use_emulated_run, monitor_key):
     """Test an objective function through tidy3d autograd."""
 
-    t = 1.0
+    t0 = 1.0
     axis = 0
 
-    num_pts = 89
+    num_pts = 819
 
     monitor, postprocess = make_monitors()[monitor_key]
 
-    def make_cylinder(radius, x0, y0):
+    def make_cylinder(radius, x0, y0, t):
         return td.Cylinder(
             center=td.Cylinder.unpop_axis(0.0, (x0, y0), axis=axis),
             radius=radius,
             length=t,
             axis=axis,
-        )  # .to_polyslab(num_pts)
+        ).to_polyslab(num_pts)
 
-    def make_polyslab(radius, x0, y0):
+    def make_polyslab(radius, x0, y0, t):
         phis = anp.linspace(0, 2 * np.pi, num_pts + 1)[:-1]
 
         xs = radius * anp.cos(phis) + x0
@@ -911,7 +911,7 @@ def test_autograd_polyslab_cylinder(use_emulated_run, monitor_key):
 
         return SIM_BASE.updated_copy(structures=[structure], monitors=[monitor])
 
-    p0 = [1.0, 0.0, 0.0]
+    p0 = [1.0, 0.0, 0.0, t0]
 
     def objective_polyslab(params):
         """Objective function."""

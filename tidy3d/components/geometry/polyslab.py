@@ -1430,20 +1430,31 @@ class PolySlab(base.Planar):
         normals_min = self.unpop_axis_vect(-ones, np.stack((zeros, zeros), axis=-1))
         normals_max = self.unpop_axis_vect(+ones, np.stack((zeros, zeros), axis=-1))
         perps1 = self.unpop_axis_vect(zeros, np.stack((ones, zeros), axis=-1))
-        perps2 = self.unpop_axis_vect(zeros, np.stack((ones, zeros), axis=-1))
+        perps2 = self.unpop_axis_vect(zeros, np.stack((zeros, ones), axis=-1))
 
-        # compute inside
-        xs, ys, _ = self.unpop_axis_vect(
-            0 * r1_centers, np.stack((r1_centers, r2_centers), axis=-1)
+        rr1_max, rr2_max, axx_max = np.meshgrid(r1_centers, r2_centers, ax_max)
+        rr1_min, rr2_min, axx_min = np.meshgrid(r1_centers, r2_centers, ax_min)
+
+        xx_max, yy_max, zz_max = self.unpop_axis_vect(
+            axx_max.flatten(),
+            np.stack((rr1_max.flatten(), rr2_max.flatten()), axis=-1),
         ).T
-        xx, yy, zz = np.meshgrid(xs, ys, self.center_axis)
-        inside = self.inside(xx, yy, zz).squeeze().flatten()
-        areas *= inside
+
+        xx_min, yy_min, zz_min = self.unpop_axis_vect(
+            axx_min.flatten(),
+            np.stack((rr1_min.flatten(), rr2_min.flatten()), axis=-1),
+        ).T
+
+        inside_min = self.inside(xx_min, yy_min, zz_min).squeeze().flatten()
+        inside_max = self.inside(xx_max, yy_max, zz_max).squeeze().flatten()
+
+        areas_max = areas * inside_max
+        areas_min = areas * inside_min
 
         # compute DerivativeSurfaceMesh for each top and bottom.
         surface_mesh_min = DerivativeSurfaceMesh(
             centers=edge_centers_xyz_min,
-            areas=areas,
+            areas=areas_min,
             normals=normals_min,
             perps1=perps1,
             perps2=perps2,
@@ -1451,7 +1462,7 @@ class PolySlab(base.Planar):
 
         surface_mesh_max = DerivativeSurfaceMesh(
             centers=edge_centers_xyz_max,
-            areas=areas,
+            areas=areas_max,
             normals=normals_max,
             perps1=perps1,
             perps2=perps2,
@@ -1460,8 +1471,8 @@ class PolySlab(base.Planar):
         grads_min = derivative_info.grad_surfaces(surface_mesh=surface_mesh_min)
         grads_max = derivative_info.grad_surfaces(surface_mesh=surface_mesh_max)
 
-        vjp_min = np.sum(grads_min).item()
-        vjp_max = np.sum(grads_max).item()
+        vjp_min = np.real(np.sum(grads_min).item())
+        vjp_max = np.real(np.sum(grads_max).item())
 
         return [vjp_min, vjp_max]
 
