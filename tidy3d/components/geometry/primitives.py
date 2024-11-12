@@ -319,27 +319,13 @@ class Cylinder(base.Centered, base.Circular, base.Planar):
 
             elif "center" in path:
                 _, center_index = path
-                if center_index == self.axis:
-                    raise NotImplementedError(
-                        "Currently cannot differentiate Cylinder with respect to its 'center' along"
-                        " the axis. If you would like this feature added, please feel free to raise"
-                        " an issue on the tidy3d front end repository."
-                    )
-
                 _, (index_x, index_y) = self.pop_axis((0, 1, 2), axis=self.axis)
                 if center_index == index_x:
                     vjps[path] = np.sum(vjps_vertices_xs)
                 elif center_index == index_y:
                     vjps[path] = np.sum(vjps_vertices_ys)
                 else:
-                    raise ValueError(
-                        "Something unexpected happened. Was asked to differentiate "
-                        f"with respect to 'Cylinder.center[{center_index}]', but this was not "
-                        "detected as being one of the parallel axis with "
-                        f"'Cylinder.axis' of '{self.axis}'. If you received this error, please raise "
-                        "an issue on the tidy3d front end repository with details about how you "
-                        "defined your 'Cylinder' in the objective function."
-                    )
+                    vjps[path] = vjp_top + vjp_bot
 
             else:
                 raise NotImplementedError(
