@@ -1625,6 +1625,8 @@ class Medium(AbstractMedium):
             Imaginary part of refrative index.
         freq : float
             Frequency to evaluate permittivity at (Hz).
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Returns
         -------
@@ -2399,6 +2401,8 @@ class CustomMedium(AbstractCustomMedium):
         interp_method : :class:`.InterpMethod`, optional
             Interpolation method to obtain permittivity values that are not supplied
             at the Yee grids.
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Note
         ----
@@ -4066,6 +4070,8 @@ class Lorentz(DispersiveMedium):
             Imaginary part of refrative index.
         freq : float
             Frequency to evaluate permittivity at (Hz).
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Returns
         -------
@@ -4104,6 +4110,7 @@ class Lorentz(DispersiveMedium):
             coeffs=[
                 (eps_i, fp, delta_p),
             ],
+            **kwargs,
         )
 
 
@@ -6503,6 +6510,8 @@ def medium_from_nk(n: float, k: float, freq: float, **kwargs) -> Union[Medium, L
         Imaginary part of refrative index.
     freq : float
         Frequency to evaluate permittivity at (Hz).
+    kwargs: dict
+        Keyword arguments passed to the medium construction.
 
     Returns
     -------
