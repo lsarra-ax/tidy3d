@@ -17,12 +17,11 @@ jobs:
       # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v5
-      # Note we just want the python versions to exist
-      # in order for `nox` to create the test-specific-venvs 
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ["3.9", "3.10", "3.11", "3.12"]
+          python-version: 3.11
 
       # Have a poetry installation available
       - name: Install Poetry
@@ -38,6 +37,8 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
+          # Note we're installing the test configuration 
+          # in order to pyproject.toml manage these deps
           pip install -e .[test]
 
       # Verify installation
