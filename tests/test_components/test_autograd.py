@@ -40,7 +40,7 @@ TEST_CUSTOM_MEDIUM_SPEED = False
 TEST_POLYSLAB_SPEED = False
 
 # whether to run numerical gradient tests, off by default because it runs real simulations
-RUN_NUMERICAL = False
+RUN_NUMERICAL = True
 _NUMERICAL_COMBINATION = ("polyslab", "mode")
 
 TEST_MODES = ("pipeline", "adjoint", "speed")
@@ -55,7 +55,7 @@ params0 = np.random.random(N_PARAMS) - 0.5
 params0 /= np.linalg.norm(params0)
 
 # whether to plot the simulation within the objective function
-PLOT_SIM = False
+PLOT_SIM = True
 
 # whether to include a call to `objective(params)` in addition to gradient
 CALL_OBJECTIVE = False
@@ -346,17 +346,17 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     radii = 1.0 + 0.5 * params_01
 
     phis = 2 * anp.pi * anp.linspace(0, 1, NUM_VERTICES + 1)[:NUM_VERTICES]
-    xs = radii * anp.cos(phis)
-    ys = radii * anp.sin(phis)
+    xs = 1.5 * anp.cos(phis)
+    ys = 1.5 * anp.sin(phis)
     vertices = anp.stack((xs, ys), axis=-1)
     slab_bounds = (-0.5 * params_01, 0.5 * params_01)
     polyslab = td.Structure(
         geometry=td.PolySlab(
             vertices=vertices,
             slab_bounds=slab_bounds,
-            axis=0,
-            sidewall_angle=0.01,
-            dilation=0.01,
+            axis=2,
+            sidewall_angle=0.00,
+            dilation=0.00,
         ),
         medium=med,
     )
