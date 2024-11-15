@@ -40,6 +40,7 @@ autograd = "1.6.2"
 scipy = "*"
 ### NOT CORE
 boto3 = "^1.28.0"
+urllib3 = "1.26.20"
 requests = "^2.31.0"
 pyjwt = "*"
 click = "^8.1.0"
@@ -63,7 +64,7 @@ nox = { version = "*", optional = true }
 nox-poetry = { version = "*", optional = true }
 
 # gdspy
-gdspy = { version = "*", optional = true }
+# gdspy = { version = "*", optional = true }
 
 # gdstk
 gdstk = { version = ">=0.9.49, <0.9.52", optional = true }
@@ -123,7 +124,7 @@ dev = [
   'dill',
   'divparams',
   'flax',
-  'gdspy',
+  #  'gdspy',
   'gdstk',
   'grcwa',
   'ipython',
