@@ -46,6 +46,10 @@ jobs:
         run: |
           source .venv/bin/activate
           pip list
+
+      - name: Run `nox` testing configuration
+        run: |
+          nox
       
 
   #pre-commit:
