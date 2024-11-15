@@ -2,8 +2,6 @@
 
 import warnings
 
-import gdspy
-import gdstk
 import matplotlib.pyplot as plt
 import numpy as np
 import pydantic.v1 as pydantic
@@ -318,8 +316,9 @@ def test_arrow_both_dirs():
     _, ax = plt.subplots()
     GEO._plot_arrow(direction=(1, 2, 3), x=0, both_dirs=True, ax=ax)
 
-
+@pytest.mark.geometry
 def test_gdstk_cell():
+    import gdstk
     gds_cell = gdstk.Cell("name")
     gds_cell.add(gdstk.rectangle((0, 0), (1, 1)))
     td.PolySlab.from_gds(gds_cell=gds_cell, axis=2, slab_bounds=(-1, 1), gds_layer=0)
@@ -331,8 +330,9 @@ def test_gdstk_cell():
             gds_cell=gds_cell, axis=2, slab_bounds=(-1, 1), gds_layer=1, gds_dtype=0
         )
 
-
+@pytest.mark.geometry
 def test_gdspy_cell():
+    import gdspy
     gds_cell = gdspy.Cell("name")
     gds_cell.add(gdspy.Rectangle((0, 0), (1, 1)))
     td.PolySlab.from_gds(gds_cell=gds_cell, axis=2, slab_bounds=(-1, 1), gds_layer=0)
@@ -685,7 +685,9 @@ def test_2b_box_intersections():
         _ = box2.intersections_2dbox(box1)
 
 
+@pytest.mark.geometry
 def test_polyslab_merge():
+    import gdstk
     """make sure polyslabs from gds get merged when they should."""
 
     def make_polyslabs(gap_size):
@@ -703,8 +705,11 @@ def test_polyslab_merge():
     assert len(polyslabs_touching) == 1, "polyslabs didn't merge correctly."
 
 
+@pytest.mark.geometry
 def test_polyslab_side_plot_merge():
     """In side plot, make sure splitted polygons merge."""
+    import gdstk
+
     x0 = 2
     y0 = 4
     z0 = 1
@@ -794,8 +799,10 @@ def test_from_shapely():
     assert len(geo.intersections_plane(z=0)) == 2
     assert len(geo.intersections_plane(z=1)) == 3
 
-
+@pytest.mark.geometry
 def test_from_gds():
+    import gdstk
+
     ring = gdstk.Polygon([(-16, 9), (-8, 9), (-12, 2)], layer=1)
     poly = gdstk.Polygon([(-2, 0), (-10, 0), (-6, 7)])
     hole = gdstk.Polygon(
@@ -810,7 +817,10 @@ def test_from_gds():
 
 
 @pytest.mark.parametrize("geometry", GEO_TYPES)
+@pytest.mark.geometry
 def test_to_gds(geometry, tmp_path):
+    import gdstk
+
     fname = str(tmp_path / f"{geometry.__class__.__name__}.gds")
     geometry.to_gds_file(fname, z=0, gds_cell_name=geometry.__class__.__name__)
     cell = gdstk.read_gds(fname).cells[0]

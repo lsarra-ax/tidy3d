@@ -4,7 +4,6 @@ import builtins
 import time
 from typing import Dict, List, Tuple
 
-import gdstk
 import h5py
 import jax
 import jax.numpy as jnp
@@ -1993,8 +1992,11 @@ def test_no_poynting(use_emulated_run):
     #    sim_data._get_scalar_field(mnt_name_differentiable, "S", "abs")
 
 
+@pytest.mark.geometry
 def test_to_gds(tmp_path):
     """Test that JaxSimulation can be converted to GDS."""
+    import gdstk
+
     sim = make_sim(permittivity=EPS, size=SIZE, vertices=VERTICES, base_eps_val=BASE_EPS_VAL)
 
     fname = str(tmp_path / "simulation_z.gds")

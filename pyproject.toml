@@ -261,7 +261,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 markers = [
-  "gds: Tests related to gds operations and packages.",
+  "geometry: Tests related to gds operations and packages.",
   "trimesh: Related to trimesh operations",
   "vtk: Related to vtk operations."
 ] # run from the correct environment

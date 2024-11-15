@@ -1,7 +1,7 @@
-import gdstk
 import numpy as np
 import tidy3d as td
 from tidy3d.plugins.polyslab import ComplexPolySlab
+import pytest
 
 from ..utils import assert_log_level
 
@@ -83,8 +83,10 @@ def test_divide_simulation():
     )
 
 
+@pytest.mark.geometry
 def test_gds_import(tmp_path):
     """construct complex polyslabs from gds (mostly from GDSII notebook)"""
+    import gdstk
 
     # Waveguide width
     wg_width = 0.45

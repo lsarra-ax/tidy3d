@@ -1,4 +1,3 @@
-import gdstk
 import matplotlib.pyplot as plt
 import numpy as np
 import pydantic.v1 as pydantic
@@ -35,6 +34,8 @@ pml_spacing = 2
 
 
 def make_coupler():
+    import gdstk
+
     # wavelength / frequency
     lambda0 = 1.550  # all length scales in microns
     freq0 = td.constants.C_0 / lambda0
@@ -245,6 +246,7 @@ def test_ports_too_close_boundary(tmp_path):
             modeler._shift_value_signed(port=port_at_edge)
 
 
+@pytest.mark.geometry
 def test_validate_batch_supplied(tmp_path):
     sim = make_coupler()
     _ = ComponentModeler(
@@ -293,6 +295,7 @@ def test_run_component_modeler(monkeypatch, tmp_path):
                     ), "monitor index not present in S matrix"
 
 
+@pytest.mark.geometry
 def test_component_modeler_run_only(monkeypatch):
     _ = make_coupler()
     _ = make_ports()
@@ -348,6 +351,7 @@ def test_run_component_modeler_mappings(monkeypatch, tmp_path):
     _test_mappings(element_mappings, s_matrix)
 
 
+@pytest.mark.geometry
 def test_mapping_exclusion(monkeypatch, tmp_path):
     """Make sure that source indices are skipped if totally covered by element mapping."""
 
