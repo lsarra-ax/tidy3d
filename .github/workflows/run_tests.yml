@@ -12,7 +12,18 @@ on:
 
 jobs:
   nox-tests:
-    runs-on: ubuntu-latest
+    name: Test OS ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+    env:  # Set environment variables for the whole job
+      PIP_ONLY_BINARY: gdstk
+      MPLBACKEND: agg
+
     steps:
       # Checkout the repository
       - name: Checkout code
