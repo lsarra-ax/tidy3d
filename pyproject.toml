@@ -59,7 +59,7 @@ pre-commit = { version = "*", optional = true }
 pylint = { version = "*", optional = true }
 pytest = { version = ">=8.1", optional = true }
 pytest-timeout = { version = "*", optional = true }
-tox = { version = "*", optional = true }
+tox = { version = ">=4", optional = true }
 
 # gdspy
 gdspy = { version = "*", optional = true }
@@ -309,3 +309,7 @@ replace = "\nversion = \"{new_version}\""
 filename = "tidy3d/version.py"
 search = "{current_version}"
 replace = "{new_version}"
+
+
+[tool.tox]
+envlist = ["py310", "py311", "py312"]
