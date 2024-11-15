@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.7] - 2024-11-15
+
 ### Added
 - Autograd support for local field projections using `FieldProjectionKSpaceMonitor`.
 - Function `components.geometry.utils.flatten_groups` now also flattens transformed groups when requested.
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Calling `.values` on `DataArray` no longer raises a `DeprecationWarning` during automatic differentiation.
 - Minimum number of PML layers set to 6.
 - `Structure.background_permittivity : float` for specifying background medium for shape differentiation deprecated in favor of `Structure.background_medium : Medium` for more generality.
+- Validate mode objects so that if a bend radius is defined, it is not smaller than half the size of the modal plane along the radial direction (i.e. the bend center is not inside the mode plane).
 
 ### Fixed
 - Regression in local field projection leading to incorrect projection results.
@@ -1383,7 +1386,8 @@ which fields are to be projected is now determined automatically based on the me
 - Job and Batch classes for better simulation handling (eventually to fully replace webapi functions).
 - A large number of small improvements and bug fixes.
 
-[Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.7.6...develop
+[Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.7.7...develop
+[2.7.7]: https://github.com/flexcompute/tidy3d/compare/v2.7.6...v2.7.7
 [2.7.6]: https://github.com/flexcompute/tidy3d/compare/v2.7.5...v2.7.6
 [2.7.5]: https://github.com/flexcompute/tidy3d/compare/v2.7.4...v2.7.5
 [2.7.4]: https://github.com/flexcompute/tidy3d/compare/v2.7.3...v2.7.4

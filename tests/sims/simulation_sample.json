@@ -41,6 +41,7 @@
                 "length": 1.0
             },
             "name": "traced_dieletric_cylinder",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -73,6 +74,7 @@
                 ]
             },
             "name": "traced_dieletric_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -117,6 +119,7 @@
                 ]
             },
             "name": "traced custom polyslab",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -152,6 +155,7 @@
                 ]
             },
             "name": "dieletric_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -184,6 +188,7 @@
                 ]
             },
             "name": "lossy_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -212,6 +217,7 @@
                 ]
             },
             "name": "sellmeier_sphere",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -252,6 +258,7 @@
                 ]
             },
             "name": "lorentz_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -290,6 +297,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -322,6 +330,7 @@
                 }
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -359,6 +368,7 @@
                 ]
             },
             "name": "drude_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -396,6 +406,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -472,6 +483,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -522,6 +534,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -592,6 +605,7 @@
                 ]
             },
             "name": "pec_group",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -622,6 +636,7 @@
                 "length": 2.0
             },
             "name": "anisotopic_cylinder",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -700,6 +715,7 @@
                 ]
             },
             "name": "pole_slab",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -743,6 +759,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -778,6 +795,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -817,6 +835,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -857,6 +876,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -896,6 +916,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -935,6 +956,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -973,6 +995,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1014,6 +1037,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1071,6 +1095,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1135,6 +1160,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1192,6 +1218,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1249,6 +1276,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1299,6 +1327,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1336,6 +1365,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1414,6 +1444,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1452,6 +1483,7 @@
                 }
             },
             "name": "dieletric_mesh",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1494,6 +1526,7 @@
                 ]
             },
             "name": null,
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1545,6 +1578,7 @@
                 }
             },
             "name": "clip_operation",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -1607,6 +1641,7 @@
                 ]
             },
             "name": "transformed_box",
+            "background_permittivity": null,
             "background_medium": null,
             "type": "Structure",
             "medium": {
@@ -2842,6 +2877,7 @@
                     ]
                 },
                 "name": null,
+                "background_permittivity": null,
                 "background_medium": null,
                 "type": "Structure",
                 "medium": {
@@ -2861,10 +2897,10 @@
         "snapping_points": [],
         "type": "GridSpec"
     },
-    "version": "2.7.6",
+    "version": "2.7.7",
     "lumped_elements": [],
     "subpixel": false,
-    "simulation_type": null,
+    "simulation_type": "tidy3d",
     "post_norm": 1.0,
     "courant": 0.8,
     "normalize_index": 0,
