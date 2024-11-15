@@ -28,11 +28,10 @@ jobs:
           pre-commit run # this should be really more agressive
 
   build:
-    name: Python ${{ matrix.python-version }} - ${{ matrix.platform }}
+    name: Test OS ${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
         platform: [ubuntu-latest, windows-latest, macos-latest]
     defaults:
       run:
@@ -54,29 +53,32 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - uses: wntrblm/nox@2024.04.15
       with:
-        python-version: ${{ matrix.python-version }}
+        python-versions: "3.9, 3.10, 3.11, 3.12"
+    
 
+    - name: Run nox
+      run: |
+        nox
     #----------------------------------------------
     # install your root project, if required
     #----------------------------------------------
-    - name: Install library
-      run: |
-        poetry --version
-        poetry env use python
-        poetry env info
-        poetry run pip install --upgrade pip wheel setuptools
-        poetry run pip install gdstk --only-binary gdstk
-        poetry install -E dev
+    # - name: Install library
+        #  run: |
+        #    poetry --version
+        #    poetry env use python
+        #    poetry env info
+        #    poetry run pip install --upgrade pip wheel setuptools
+        #    poetry run pip install gdstk --only-binary gdstk
+        #    poetry install -E dev
 
     #----------------------------------------------
     #    add matrix specifics and run test suite
     #----------------------------------------------
-    - name: Run tests
-      run: |
-        poetry run ruff format . --check --diff
-        poetry run ruff check tidy3d --fix --exit-non-zero-on-fix
-        poetry run pytest -rA tests
-        poetry run pytest -rA tests/_test_data/_test_datasets_no_vtk.py
+      #- name: Run tests
+      #  run: |
+      #    poetry run ruff format . --check --diff
+      #    poetry run ruff check tidy3d --fix --exit-non-zero-on-fix
+      #    poetry run pytest -rA tests
+      #    poetry run pytest -rA tests/_test_data/_test_datasets_no_vtk.py
