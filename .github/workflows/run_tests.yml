@@ -12,7 +12,7 @@ on:
 
 jobs:
   nox-tests:
-    name: Test OS ${{ matrix.platform }}
+    name: nox-${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
@@ -29,7 +29,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Python
+      - name: Set up Python Interpreters
         uses: actions/setup-python@v5
         with:
           python-version: |
@@ -50,7 +50,7 @@ jobs:
       - name: Create virtual environment
         run: |
           python -m venv .venv
-          source .venv/bin/activate
+          source .venv/bin/activate || .venv\\Scripts\\activate
           python -m pip install --upgrade pip
           # Note we're installing the test configuration 
           # in order to pyproject.toml manage these deps
@@ -59,12 +59,12 @@ jobs:
       # Verify installation
       - name: Verify installation
         run: |
-          source .venv/bin/activate
+          source .venv/bin/activate || .venv\\Scripts\\activate
           pip list
 
       - name: Run `nox` testing configuration
         run: |
-          source .venv/bin/activate
+          source .venv/bin/activate || .venv\\Scripts\\activate
           nox
       
 
