@@ -56,12 +56,16 @@ jobs:
     - uses: wntrblm/nox@2024.04.15
       with:
         python-versions: "3.9, 3.10, 3.11, 3.12"
-    
+   
+    - name: Install Extra Dependencies
+      run: |
+        pip install nox-poetry
 
     - name: Run nox
       run: |
         nox
-    #----------------------------------------------
+    
+        #----------------------------------------------
     # install your root project, if required
     #----------------------------------------------
     # - name: Install library
