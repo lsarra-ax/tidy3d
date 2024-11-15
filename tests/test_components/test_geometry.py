@@ -8,7 +8,6 @@ import pydantic.v1 as pydantic
 import pytest
 import shapely
 import tidy3d as td
-import trimesh
 from tidy3d.components.geometry.base import Planar
 from tidy3d.components.geometry.mesh import AREA_SIZE_THRESHOLD
 from tidy3d.components.geometry.utils import flatten_groups, traverse_geometries
@@ -833,8 +832,10 @@ def test_to_gds(geometry, tmp_path):
     assert cell.name == geometry.__class__.__name__
     assert len(cell.polygons) == 0
 
-
+@pytest.mark.trimesh
 def test_custom_surface_geometry(tmp_path, log_capture):
+    import trimesh
+
     # create tetrahedron STL
     vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]])
     faces = np.array([[1, 2, 3], [0, 3, 2], [0, 1, 3], [0, 2, 1]])

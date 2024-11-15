@@ -9,6 +9,7 @@ from ..test_data.test_datasets import test_triangular_dataset as _test_triangula
 
 
 @pytest.fixture
+@pytest.mark.vtk
 def hide_vtk(monkeypatch, request):
     import_orig = builtins.__import__
 
@@ -21,10 +22,12 @@ def hide_vtk(monkeypatch, request):
 
 
 @pytest.mark.usefixtures("hide_vtk")
+@pytest.mark.vtk
 def test_triangular_dataset_no_vtk(tmp_path, log_capture):
     _test_triangular_dataset(log_capture, tmp_path, "test_name", no_vtk=True)
 
 
 @pytest.mark.usefixtures("hide_vtk")
+@pytest.mark.vtk
 def test_tetrahedral_dataset_no_vtk(tmp_path, log_capture):
     _test_tetrahedral_dataset(log_capture, tmp_path, "test_name", no_vtk=True)

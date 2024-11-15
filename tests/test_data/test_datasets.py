@@ -11,6 +11,7 @@ np.random.seed(4)
 
 
 @pytest.mark.parametrize("ds_name", ["test123", None])
+@pytest.mark.vtk
 def test_triangular_dataset(log_capture, tmp_path, ds_name, no_vtk=False):
     import tidy3d as td
     from tidy3d.exceptions import DataError, Tidy3dImportError
@@ -558,6 +559,7 @@ def test_tetrahedral_dataset(log_capture, tmp_path, ds_name, no_vtk=False):
 @pytest.mark.parametrize("fill_value", [0.23123, "extrapolate"])
 @pytest.mark.parametrize("use_vtk", [True, False])
 @pytest.mark.parametrize("nz", [13, 1])
+@pytest.mark.vtk
 def test_cartesian_to_unstructured(nz, use_vtk, fill_value):
     import tidy3d as td
 

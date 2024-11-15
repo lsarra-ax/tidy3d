@@ -12,7 +12,6 @@ import numpy as np
 import pydantic.v1 as pydantic
 import pytest
 import tidy3d as td
-import trimesh
 from jax import grad
 from jax.test_util import check_grads
 from numpy.testing import assert_allclose
@@ -1686,9 +1685,10 @@ def test_sim_data_plot_field(use_emulated_run):
     # plt.show()
     assert len(ax.collections) == 1
 
-
+@pytest.mark.trimesh
 def test_pytreedef_errors(use_emulated_run):
     """Fix errors that occur when jax doesnt know how to handle array types in aux_data."""
+    import trimesh
 
     vertices = [(0, 0), (1, 0), (1, 1), (0, 1)]
     polyslab = td.PolySlab(vertices=vertices, slab_bounds=(0, 1), axis=2)
