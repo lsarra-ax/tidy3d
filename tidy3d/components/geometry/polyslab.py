@@ -1474,6 +1474,10 @@ class PolySlab(base.Planar):
         vjp_min = np.real(np.sum(grads_min).item())
         vjp_max = np.real(np.sum(grads_max).item())
 
+        import pdb
+
+        pdb.set_trace()
+
         return [vjp_min, vjp_max]
 
     def compute_derivative_vertices(self, derivative_info: DerivativeInfo) -> TracedVertices:

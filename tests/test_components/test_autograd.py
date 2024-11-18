@@ -55,7 +55,7 @@ params0 = np.random.random(N_PARAMS) - 0.5
 params0 /= np.linalg.norm(params0)
 
 # whether to plot the simulation within the objective function
-PLOT_SIM = True
+PLOT_SIM = False
 
 # whether to include a call to `objective(params)` in addition to gradient
 CALL_OBJECTIVE = False
@@ -70,11 +70,11 @@ FWIDTH = FREQ0 / 10
 # sim sizes
 LZ = 7.0 * WVL
 
-IS_3D = False
+IS_3D = True
 
 # TODO: test 2D and 3D parameterized
 
-LX = 0.5 * WVL if IS_3D else 0.0
+LX = 3.5 * WVL if IS_3D else 0.0
 PML_X = True if IS_3D else False
 
 
