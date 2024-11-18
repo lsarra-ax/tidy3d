@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Small inaccuracy when applying a mode solver `bend_radius` when the simulation grid is not symmetric w.r.t. the mode plane center. Previously, the radius was defined w.r.t. the middle grid coordinate, while now it is correctly applied w.r.t. the plane center.
 - Silence warning in graphene from checking fit quality at large frequencies.
 
+### Fixed
+- Gradient inaccuracy when a multi-frequency monitor is used but a single frequency is selected.
+
 ## [2.7.7] - 2024-11-15
 
 ### Added
