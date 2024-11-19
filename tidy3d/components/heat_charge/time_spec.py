@@ -1,12 +1,12 @@
 """Dealing with time specifications for DeviceSimulation"""
 
 from abc import ABC
-import pydantic.v1 as pd
 from typing import Optional, Union
 
-from ..base import Tidy3dBaseModel
+import pydantic.v1 as pd
 
-from ...constants import SECOND, KELVIN, VOLT
+from ...constants import KELVIN, SECOND, VOLT
+from ..base import Tidy3dBaseModel
 
 
 class TimeBaseSpec(Tidy3dBaseModel, ABC):
