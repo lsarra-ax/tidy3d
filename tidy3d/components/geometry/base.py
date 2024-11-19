@@ -2429,36 +2429,33 @@ class Box(SimplePlaneIntersection, Centered):
             )
             return 0.0
 
-        # grab permittivity data inside and outside edge in normal direction
-        eps_xyz = [derivative_info.eps_data[f"eps_{dim}{dim}"] for dim in "xyz"]
+        def grab_eps_at_fld(fld_arr: xr.DataArray, is_inside: bool) -> np.ndarray:
+            """Grab the permittivity at the field locations, either inside or outside."""
 
-        # number of cells from the edge of data to register "inside" (index = num_cells_in - 1)
-        num_cells_in = 4
+            # construct (N, 3) array of field spatial coordinates
+            edge_centers_at_coords = [fld_arr.coords[dim] for dim in "xyz"]
+            field_centers = np.meshgrid(*edge_centers_at_coords, indexing="ij")
+            field_centers = [x.flatten() for x in field_centers]
+            field_centers = np.stack(field_centers, axis=-1)
 
-        # if not enough data, just use best guess using eps in medium and simulation
-        needs_eps_approx = any(len(eps.coords[dim_normal]) <= num_cells_in for eps in eps_xyz)
+            # interpolate permittivity at field centers
+            eps = derivative_info.evaluate_eps(field_centers, is_inside=is_inside)
 
-        if derivative_info.eps_approx or needs_eps_approx:
-            eps_xyz_inside = 3 * [derivative_info.eps_in]
-            eps_xyz_outside = 3 * [derivative_info.eps_out]
-            # TODO: not tested...
+            # reshape to broadcast properly when multiplied with original `fld_arr`
+            final_shape = [len(x) for x in edge_centers_at_coords]
+            final_shape.append(1)
+            return eps.reshape(final_shape)
 
-        # otherwise, try to grab the data at the edges
-        else:
-            if min_max_index == 0:
-                index_out, index_in = (0, num_cells_in - 1)
-            else:
-                index_out, index_in = (-1, -num_cells_in)
-            eps_xyz_inside = [eps.isel(**{dim_normal: index_in}) for eps in eps_xyz]
-            eps_xyz_outside = [eps.isel(**{dim_normal: index_out}) for eps in eps_xyz]
+        eps_in_D = grab_eps_at_fld(D_normal, is_inside=True)
+        eps_out_D = grab_eps_at_fld(D_normal, is_inside=False)
+        delta_eps_inv_normal = 1.0 / eps_in_D - 1.0 / eps_out_D
 
-        # put in normal / tangential basis
-        eps_in_normal, eps_in_perps = self.pop_axis(eps_xyz_inside, axis=axis_normal)
-        eps_out_normal, eps_out_perps = self.pop_axis(eps_xyz_outside, axis=axis_normal)
-
-        # compute integration pre-factors
-        delta_eps_perps = [eps_in - eps_out for eps_in, eps_out in zip(eps_in_perps, eps_out_perps)]
-        delta_eps_inv_normal = 1.0 / eps_in_normal - 1.0 / eps_out_normal
+        delta_eps_perps = []
+        for E_perp in Es_perp:
+            eps_in_E = grab_eps_at_fld(E_perp, is_inside=True)
+            eps_out_E = grab_eps_at_fld(E_perp, is_inside=False)
+            delta_eps_perp = eps_in_E - eps_out_E
+            delta_eps_perps.append(delta_eps_perp)
 
         def integrate_face(arr: xr.DataArray) -> complex:
             """Interpolate and integrate a scalar field data over the face using bounds."""
@@ -2478,6 +2475,7 @@ class Box(SimplePlaneIntersection, Centered):
 
         # perform D-normal integral
         integrand_D = -delta_eps_inv_normal * D_normal
+
         integral_D = integrate_face(integrand_D)
         vjp_value += integral_D
 

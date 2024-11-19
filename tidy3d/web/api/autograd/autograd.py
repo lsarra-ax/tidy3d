@@ -862,28 +862,24 @@ def postprocess_adj(
         if structure.background_medium is not None:
             eps_out = structure.background_medium.eps_model(freq_adj)
 
-        if isinstance(structure.geometry, (td.PolySlab, td.Cylinder)):
-            # auto permittivity detection
-            sim_orig = sim_data_orig.simulation
-            plane_eps = eps_fwd.monitor.geometry
+        # auto permittivity detection
+        sim_orig = sim_data_orig.simulation
+        plane_eps = eps_fwd.monitor.geometry
 
-            # get permittivity without this structure
-            structs_no_struct = list(sim_orig.structures)
-            structs_no_struct.pop(structure_index)
-            sim_no_structure = sim_orig.updated_copy(structures=structs_no_struct)
-            eps_no_structure = sim_no_structure.epsilon(box=plane_eps, coord_key="centers")
+        # get permittivity without this structure
+        structs_no_struct = list(sim_orig.structures)
+        structs_no_struct.pop(structure_index)
+        sim_no_structure = sim_orig.updated_copy(structures=structs_no_struct)
+        eps_no_structure = sim_no_structure.epsilon(box=plane_eps, coord_key="centers")
 
-            # get permittivity without this structure
-            structs_inf_struct = list(sim_orig.structures)[structure_index + 1 :]
-            sim_inf_structure = sim_orig.updated_copy(
-                structures=structs_inf_struct,
-                medium=structure.medium,
-                monitors=[],
-            )
-            eps_inf_structure = sim_inf_structure.epsilon(box=plane_eps, coord_key="centers")
-
-        else:
-            eps_no_structure = eps_inf_structure = None
+        # get permittivity without this structure
+        structs_inf_struct = list(sim_orig.structures)[structure_index + 1 :]
+        sim_inf_structure = sim_orig.updated_copy(
+            structures=structs_inf_struct,
+            medium=structure.medium,
+            monitors=[],
+        )
+        eps_inf_structure = sim_inf_structure.epsilon(box=plane_eps, coord_key="centers")
 
         derivative_info = DerivativeInfo(
             paths=structure_paths,
