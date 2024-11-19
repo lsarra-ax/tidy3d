@@ -96,7 +96,7 @@ def cartesian_to_unstructured(
 
     shape = np.shape(XYZ[0])
 
-    XYZp = XYZ.copy()
+    XYZp = np.array(XYZ).copy()
     rng = np.random.default_rng(seed=seed)
 
     x_pert = (1 - 2 * rng.random(shape)) * pert
@@ -401,6 +401,11 @@ SIM_FULL = td.Simulation(
     size=(8.0, 8.0, 8.0),
     run_time=1e-12,
     structures=[
+        td.Structure(
+            geometry=td.Cylinder(length=1, center=(-1 * tracer, 0, 0), radius=tracer, axis=2),
+            medium=td.Medium(permittivity=1 + tracer, name="dieletric"),
+            name="traced_dieletric_cylinder",
+        ),
         td.Structure(
             geometry=td.Box(size=(1, tracer, tracer), center=(-1 * tracer, 0, 0)),
             medium=td.Medium(permittivity=1 + tracer, name="dieletric"),
@@ -890,6 +895,8 @@ def run_emulated(simulation: td.Simulation, path=None, **kwargs) -> td.Simulatio
     """Emulates a simulation run."""
     from scipy.ndimage.filters import gaussian_filter
 
+    x = kwargs.get("x0", 1.0)
+
     def make_data(
         coords: dict, data_array_type: type, is_complex: bool = False
     ) -> td.components.data.data_array.DataArray:
@@ -900,7 +907,7 @@ def run_emulated(simulation: td.Simulation, path=None, **kwargs) -> td.Simulatio
 
         data = (1 + 0.5j) * data if is_complex else data
         data = gaussian_filter(data, sigma=1.0)  # smooth out the data a little so it isnt random
-        data_array = data_array_type(data, coords=coords)
+        data_array = data_array_type(x * data, coords=coords)
         return data_array
 
     def make_field_data(monitor: td.FieldMonitor) -> td.FieldData:
@@ -1018,6 +1025,13 @@ def run_emulated(simulation: td.Simulation, path=None, **kwargs) -> td.Simulatio
             grid_expanded=simulation.discretize_monitor(monitor),
         )
 
+    def make_flux_data(monitor: td.FluxMonitor) -> td.FluxData:
+        """make a random ModeData from a ModeMonitor."""
+
+        coords = dict(f=list(monitor.freqs))
+        flux = make_data(coords=coords, data_array_type=td.FluxDataArray, is_complex=False)
+        return td.FluxData(monitor=monitor, flux=flux)
+
     MONITOR_MAKER_MAP = {
         td.FieldMonitor: make_field_data,
         td.FieldTimeMonitor: make_field_time_data,
@@ -1025,6 +1039,7 @@ def run_emulated(simulation: td.Simulation, path=None, **kwargs) -> td.Simulatio
         td.ModeMonitor: make_mode_data,
         td.PermittivityMonitor: make_eps_data,
         td.DiffractionMonitor: make_diff_data,
+        td.FluxMonitor: make_flux_data,
     }
 
     data = [MONITOR_MAKER_MAP[type(mnt)](mnt) for mnt in simulation.monitors]

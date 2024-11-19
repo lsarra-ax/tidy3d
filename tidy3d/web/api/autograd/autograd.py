@@ -1,8 +1,10 @@
 # autograd wrapper for web functions
 
+import os
 import tempfile
 import typing
 from collections import defaultdict
+from os.path import basename, dirname, join
 
 import numpy as np
 from autograd.builtins import dict as dict_ag
@@ -11,15 +13,14 @@ from autograd.extend import defvjp, primitive
 import tidy3d as td
 from tidy3d.components.autograd import AutogradFieldMap, get_static
 from tidy3d.components.autograd.derivative_utils import DerivativeInfo
-from tidy3d.components.data.sim_data import AdjointSourceInfo
 
 from ...core.s3utils import download_file, upload_file
 from ..asynchronous import DEFAULT_DATA_DIR
 from ..asynchronous import run_async as run_async_webapi
-from ..container import Batch, BatchData, Job
+from ..container import DEFAULT_DATA_PATH, Batch, BatchData, Job
 from ..tidy3d_stub import SimulationDataType, SimulationType
 from ..webapi import run as run_webapi
-from .utils import FieldMap, TracerKeys, get_derivative_maps
+from .utils import E_to_D, FieldMap, TracerKeys, get_derivative_maps
 
 # keys for data into auxiliary dictionary
 AUX_KEY_SIM_DATA_ORIGINAL = "sim_data"
@@ -29,7 +30,6 @@ AUX_KEY_SIM_ORIGINAL = "sim_original"
 # server-side auxiliary files to upload/download
 SIM_VJP_FILE = "output/autograd_sim_vjp.hdf5"
 SIM_FIELDS_KEYS_FILE = "autograd_sim_fields_keys.hdf5"
-ADJOINT_SOURCE_INFO_FILE = "autograd_adjoint_source_info_file.hdf5"
 
 ISSUE_URL = (
     "https://github.com/flexcompute/tidy3d/issues/new?"
@@ -41,6 +41,10 @@ MAX_NUM_TRACED_STRUCTURES = 500
 
 # default value for whether to do local gradient calculation (True) or server side (False)
 LOCAL_GRADIENT = False
+
+# if True, will plot the adjoint fields on the plane provided. used for debugging only
+_INSPECT_ADJOINT_FIELDS = False
+_INSPECT_ADJOINT_PLANE = td.Box(center=(0, 0, 0), size=(td.inf, td.inf, 0))
 
 
 def is_valid_for_autograd(simulation: td.Simulation) -> bool:
@@ -284,7 +288,10 @@ def run_async(
 
 
 def _run(
-    simulation: td.Simulation, task_name: str, local_gradient: bool = LOCAL_GRADIENT, **run_kwargs
+    simulation: td.Simulation,
+    task_name: str,
+    local_gradient: bool = LOCAL_GRADIENT,
+    **run_kwargs,
 ) -> td.SimulationData:
     """User-facing ``web.run`` function, compatible with ``autograd`` differentiation."""
 
@@ -318,7 +325,9 @@ def _run(
 
 
 def _run_async(
-    simulations: dict[str, td.Simulation], local_gradient: bool = LOCAL_GRADIENT, **run_async_kwargs
+    simulations: dict[str, td.Simulation],
+    local_gradient: bool = LOCAL_GRADIENT,
+    **run_async_kwargs,
 ) -> dict[str, td.SimulationData]:
     """User-facing ``web.run_async`` function, compatible with ``autograd`` differentiation."""
 
@@ -388,12 +397,14 @@ def _run_primitive(
 
     td.log.info("running primitive '_run_primitive()'")
 
+    # compute the combined simulation for both local and remote, so we can validate it
+    sim_combined = setup_fwd(
+        sim_fields=sim_fields,
+        sim_original=sim_original,
+        local_gradient=local_gradient,
+    )
+
     if local_gradient:
-        sim_combined = setup_fwd(
-            sim_fields=sim_fields,
-            sim_original=sim_original,
-            local_gradient=local_gradient,
-        )
         sim_data_combined, _ = _run_tidy3d(sim_combined, task_name=task_name, **run_kwargs)
 
         field_map = postprocess_fwd(
@@ -403,6 +414,7 @@ def _run_primitive(
         )
 
     else:
+        sim_combined.validate_pre_upload()
         sim_original = sim_original.updated_copy(simulation_type="autograd_fwd", deep=False)
         run_kwargs["simulation_type"] = "autograd_fwd"
         run_kwargs["sim_fields_keys"] = list(sim_fields.keys())
@@ -523,30 +535,21 @@ def postprocess_fwd(
 
 def upload_sim_fields_keys(sim_fields_keys: list[tuple], task_id: str, verbose: bool = False):
     """Function to grab the VJP result for the simulation fields from the adjoint task ID."""
-    data_file = tempfile.NamedTemporaryFile(suffix=".hdf5")
-    data_file.close()
-    TracerKeys(keys=sim_fields_keys).to_file(data_file.name)
-    upload_file(
-        task_id,
-        data_file.name,
-        SIM_FIELDS_KEYS_FILE,
-        verbose=verbose,
-    )
-
-
-def upload_adjoint_source_info(
-    adjoint_source_info: AdjointSourceInfo, task_id: str, verbose: bool = False
-) -> None:
-    """Upload the adjoint source information for the adjoint run."""
-    data_file = tempfile.NamedTemporaryFile(suffix=".hdf5")
-    data_file.close()
-    adjoint_source_info.to_file(data_file.name)
-    upload_file(
-        task_id,
-        data_file.name,
-        ADJOINT_SOURCE_INFO_FILE,
-        verbose=verbose,
-    )
+    handle, fname = tempfile.mkstemp(suffix=".hdf5")
+    os.close(handle)
+    try:
+        TracerKeys(keys=sim_fields_keys).to_file(fname)
+        upload_file(
+            task_id,
+            fname,
+            SIM_FIELDS_KEYS_FILE,
+            verbose=verbose,
+        )
+    except Exception as e:
+        td.log.error(f"Error occurred while uploading simulation fields keys: {e}")
+        raise e
+    finally:
+        os.unlink(fname)
 
 
 """ VJP maker for ADJ pass."""
@@ -554,10 +557,16 @@ def upload_adjoint_source_info(
 
 def get_vjp_traced_fields(task_id_adj: str, verbose: bool) -> AutogradFieldMap:
     """Function to grab the VJP result for the simulation fields from the adjoint task ID."""
-    data_file = tempfile.NamedTemporaryFile(suffix=".hdf5")
-    data_file.close()
-    download_file(task_id_adj, SIM_VJP_FILE, to_file=data_file.name, verbose=verbose)
-    field_map = FieldMap.from_file(data_file.name)
+    handle, fname = tempfile.mkstemp(suffix=".hdf5")
+    os.close(handle)
+    try:
+        download_file(task_id_adj, SIM_VJP_FILE, to_file=fname, verbose=verbose)
+        field_map = FieldMap.from_file(fname)
+    except Exception as e:
+        td.log.error(f"Error occurred while getting VJP traced fields: {e}")
+        raise e
+    finally:
+        os.unlink(fname)
     return field_map.to_autograd_field_map
 
 
@@ -585,11 +594,20 @@ def _run_bwd(
     def vjp(data_fields_vjp: AutogradFieldMap) -> AutogradFieldMap:
         """dJ/d{sim.traced_fields()} as a function of Function of dJ/d{data.traced_fields()}"""
 
-        sim_adj, adjoint_source_info = setup_adj(
+        sim_adj = setup_adj(
             data_fields_vjp=data_fields_vjp,
             sim_data_orig=sim_data_orig,
             sim_fields_keys=sim_fields_keys,
         )
+
+        if sim_adj is None:
+            td.log.warning(
+                f"Adjoint simulation for task '{task_name}' contains no sources. "
+                "This can occur if the objective function does not depend on the "
+                "simulation's output. If this is unexpected, please review your "
+                "setup or contact customer support for assistance."
+            )
+            return {k: 0 * v for k, v in sim_fields_original.items()}
 
         # run adjoint simulation
         task_name_adj = str(task_name) + "_adjoint"
@@ -602,7 +620,6 @@ def _run_bwd(
                 sim_data_orig=sim_data_orig,
                 sim_data_fwd=sim_data_fwd,
                 sim_fields_keys=sim_fields_keys,
-                adjoint_source_info=adjoint_source_info,
             )
 
         else:
@@ -614,7 +631,6 @@ def _run_bwd(
             vjp_traced_fields = _run_tidy3d_bwd(
                 sim_adj,
                 task_name=task_name_adj,
-                adjoint_source_info=adjoint_source_info,
                 **run_kwargs,
             )
 
@@ -653,66 +669,78 @@ def _run_async_bwd(
     def vjp(data_fields_dict_vjp: dict[str, AutogradFieldMap]) -> dict[str, AutogradFieldMap]:
         """dJ/d{sim.traced_fields()} as a function of Function of dJ/d{data.traced_fields()}"""
 
-        task_names_adj = {task_name + "_adjoint" for task_name in task_names}
+        task_names_adj = [task_name + "_adjoint" for task_name in task_names]
 
         sims_adj = {}
-        adjoint_source_info_dict = {}
+        sim_fields_vjp_dict = {}
         for task_name, task_name_adj in zip(task_names, task_names_adj):
             data_fields_vjp = data_fields_dict_vjp[task_name]
             sim_data_orig = sim_data_orig_dict[task_name]
             sim_fields_keys = sim_fields_keys_dict[task_name]
 
-            sim_adj, adjoint_source_info = setup_adj(
+            sim_adj = setup_adj(
                 data_fields_vjp=data_fields_vjp,
                 sim_data_orig=sim_data_orig,
                 sim_fields_keys=sim_fields_keys,
             )
+
+            if sim_adj is None:
+                td.log.debug(f"Adjoint simulation for task '{task_name}' contains no sources. ")
+                sim_fields_vjp_dict[task_name] = {
+                    k: 0 * v for k, v in sim_fields_original_dict[task_name].items()
+                }
             sims_adj[task_name_adj] = sim_adj
-            adjoint_source_info_dict[task_name_adj] = adjoint_source_info
-            # TODO: handle case where no adjoint sources?
+
+        sims_to_run = {k: v for k, v in sims_adj.items() if v is not None}
+
+        if not sims_to_run:
+            td.log.warning(
+                "No simulation in batch contains adjoint sources and thus all gradients are zero. "
+                "This likely indicates an issue with your setup, consider double-checking or contact support."
+            )
+            return sim_fields_vjp_dict
+
+        task_names_adj = list(sims_to_run.keys())
+        task_names_fwd = [name.rstrip("_adjoint") for name in task_names_adj]
 
         if local_gradient:
             # run adjoint simulation
-            batch_data_adj, _ = _run_async_tidy3d(sims_adj, **run_async_kwargs)
+            batch_data_adj, _ = _run_async_tidy3d(sims_to_run, **run_async_kwargs)
 
-            sim_fields_vjp_dict = {}
-            for task_name, task_name_adj in zip(task_names, task_names_adj):
-                sim_data_adj = batch_data_adj[task_name_adj]
+            for task_name, task_name_adj in zip(task_names_fwd, task_names_adj):
                 sim_data_orig = sim_data_orig_dict[task_name]
                 sim_data_fwd = sim_data_fwd_dict[task_name]
                 sim_fields_keys = sim_fields_keys_dict[task_name]
-                adjoint_source_info = adjoint_source_info_dict[task_name_adj]
+
+                sim_data_adj = batch_data_adj.get(task_name_adj)
 
                 sim_fields_vjp = postprocess_adj(
                     sim_data_adj=sim_data_adj,
                     sim_data_orig=sim_data_orig,
                     sim_data_fwd=sim_data_fwd,
                     sim_fields_keys=sim_fields_keys,
-                    adjoint_source_info=adjoint_source_info,
                 )
-                sim_fields_vjp_dict[task_name] = sim_fields_vjp
 
+                sim_fields_vjp_dict[task_name] = sim_fields_vjp
         else:
             parent_tasks = {}
-            for task_name_fwd, task_name_adj in zip(task_names, task_names_adj):
+            for task_name_fwd, task_name_adj in zip(task_names_fwd, task_names_adj):
                 task_id_fwd = aux_data_dict[task_name_fwd][AUX_KEY_FWD_TASK_ID]
                 parent_tasks[task_name_adj] = [task_id_fwd]
 
             run_async_kwargs["parent_tasks"] = parent_tasks
             run_async_kwargs["simulation_type"] = "autograd_bwd"
-            sims_adj = {
+            simulations = {
                 task_name: sim.updated_copy(simulation_type="autograd_bwd", deep=False)
-                for task_name, sim in sims_adj.items()
+                for task_name, sim in sims_to_run.items()
             }
             sim_fields_vjp_dict_adj_keys = _run_async_tidy3d_bwd(
-                simulations=sims_adj,
-                adjoint_source_info_dict=adjoint_source_info_dict,
+                simulations=simulations,
                 **run_async_kwargs,
             )
 
             # swap adjoint task_names for original task_names
-            sim_fields_vjp_dict = {}
-            for task_name_fwd, task_name_adj in zip(task_names, task_names_adj):
+            for task_name_fwd, task_name_adj in zip(task_names_fwd, task_names_adj):
                 sim_fields_vjp_dict[task_name_fwd] = sim_fields_vjp_dict_adj_keys[task_name_adj]
 
         return sim_fields_vjp_dict
@@ -724,15 +752,13 @@ def setup_adj(
     data_fields_vjp: AutogradFieldMap,
     sim_data_orig: td.SimulationData,
     sim_fields_keys: list[tuple],
-) -> tuple[td.Simulation, AdjointSourceInfo]:
+) -> typing.Optional[td.Simulation]:
     """Construct an adjoint simulation from a set of data_fields for the VJP."""
 
     td.log.info("Running custom vjp (adjoint) pipeline.")
 
     # immediately filter out any data_vjps with all 0's in the data
-    data_fields_vjp = {
-        key: get_static(value) for key, value in data_fields_vjp.items() if not np.all(value == 0.0)
-    }
+    data_fields_vjp = {key: get_static(value) for key, value in data_fields_vjp.items()}
 
     # insert the raw VJP data into the .data of the original SimulationData
     sim_data_vjp = sim_data_orig.insert_traced_fields(field_mapping=data_fields_vjp)
@@ -745,13 +771,39 @@ def setup_adj(
         num_monitors:
     ]
 
-    sim_adj, adjoint_source_info = sim_data_vjp.make_adjoint_sim(
-        data_vjp_paths=data_vjp_paths, adjoint_monitors=adjoint_monitors
+    sim_adj = sim_data_vjp.make_adjoint_sim(
+        data_vjp_paths=data_vjp_paths,
+        adjoint_monitors=adjoint_monitors,
     )
+    if sim_adj is None:
+        return sim_adj
+
+    if _INSPECT_ADJOINT_FIELDS:
+        adj_fld_mnt = td.FieldMonitor(
+            center=_INSPECT_ADJOINT_PLANE.center,
+            size=_INSPECT_ADJOINT_PLANE.size,
+            freqs=adjoint_monitors[0].freqs,
+            name="adjoint_fields",
+        )
+
+        import matplotlib.pylab as plt
+
+        import tidy3d.web as web
+
+        sim_data_new = web.run(
+            sim_adj.updated_copy(monitors=[adj_fld_mnt]),
+            task_name="adjoint_field_viz",
+            verbose=False,
+        )
+        _, (ax1, ax2, ax3) = plt.subplots(1, 3, tight_layout=True, figsize=(10, 4))
+        sim_data_new.plot_field("adjoint_fields", "Ex", "re", ax=ax1)
+        sim_data_new.plot_field("adjoint_fields", "Ey", "re", ax=ax2)
+        sim_data_new.plot_field("adjoint_fields", "Ez", "re", ax=ax3)
+        plt.show()
 
     td.log.info(f"Adjoint simulation created with {len(sim_adj.sources)} sources.")
 
-    return sim_adj, adjoint_source_info
+    return sim_adj
 
 
 def postprocess_adj(
@@ -759,7 +811,6 @@ def postprocess_adj(
     sim_data_orig: td.SimulationData,
     sim_data_fwd: td.SimulationData,
     sim_fields_keys: list[tuple],
-    adjoint_source_info: AdjointSourceInfo,
 ) -> AutogradFieldMap:
     """Postprocess some data from the adjoint simulation into the VJP for the original sim flds."""
 
@@ -773,25 +824,28 @@ def postprocess_adj(
     sim_fields_vjp = {}
     for structure_index, structure_paths in sim_vjp_map.items():
         # grab the forward and adjoint data
-        fld_fwd = sim_data_fwd.get_adjoint_data(structure_index, data_type="fld")
+        E_fwd = sim_data_fwd.get_adjoint_data(structure_index, data_type="fld")
         eps_fwd = sim_data_fwd.get_adjoint_data(structure_index, data_type="eps")
-        fld_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="fld")
+        E_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="fld")
         eps_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="eps")
 
         # post normalize the adjoint fields if a single, broadband source
 
         fwd_flds_normed = {}
-        for key, val in fld_adj.field_components.items():
-            fwd_flds_normed[key] = val * adjoint_source_info.post_norm
+        for key, val in E_adj.field_components.items():
+            fwd_flds_normed[key] = val * sim_data_adj.simulation.post_norm
 
-        fld_adj = fld_adj.updated_copy(**fwd_flds_normed)
+        E_adj = E_adj.updated_copy(**fwd_flds_normed)
 
         # maps of the E_fwd * E_adj and D_fwd * D_adj, each as as td.FieldData & 'Ex', 'Ey', 'Ez'
         der_maps = get_derivative_maps(
-            fld_fwd=fld_fwd, eps_fwd=eps_fwd, fld_adj=fld_adj, eps_adj=eps_adj
+            fld_fwd=E_fwd, eps_fwd=eps_fwd, fld_adj=E_adj, eps_adj=eps_adj
         )
         E_der_map = der_maps["E"]
         D_der_map = der_maps["D"]
+
+        D_fwd = E_to_D(E_fwd, eps_fwd)
+        D_adj = E_to_D(E_adj, eps_fwd)
 
         # compute the derivatives for this structure
         structure = sim_data_fwd.simulation.structures[structure_index]
@@ -805,13 +859,17 @@ def postprocess_adj(
         eps_out = np.mean(sim_data_orig.simulation.medium.eps_model(freq_adj))
 
         # manually override simulation medium as the background structure
-        if structure.background_permittivity is not None:
-            eps_out = structure.background_permittivity
+        if structure.background_medium is not None:
+            eps_out = structure.background_medium.eps_model(freq_adj)
 
         derivative_info = DerivativeInfo(
             paths=structure_paths,
             E_der_map=E_der_map.field_components,
             D_der_map=D_der_map.field_components,
+            E_fwd=E_fwd.field_components,
+            E_adj=E_adj.field_components,
+            D_fwd=D_fwd.field_components,
+            D_adj=D_adj.field_components,
             eps_data=eps_fwd.field_components,
             eps_in=eps_in,
             eps_out=eps_out,
@@ -847,7 +905,7 @@ def parse_run_kwargs(**run_kwargs):
 
 def _run_tidy3d(
     simulation: td.Simulation, task_name: str, **run_kwargs
-) -> (td.SimulationData, str):
+) -> tuple[td.SimulationData, str]:
     """Run a simulation without any tracers using regular web.run()."""
     job_init_kwargs = parse_run_kwargs(**run_kwargs)
     job = Job(simulation=simulation, task_name=task_name, **job_init_kwargs)
@@ -855,18 +913,18 @@ def _run_tidy3d(
     if job.simulation_type == "autograd_fwd":
         verbose = run_kwargs.get("verbose", False)
         upload_sim_fields_keys(run_kwargs["sim_fields_keys"], task_id=job.task_id, verbose=verbose)
-    data = job.run()
+    path = run_kwargs.get("path", DEFAULT_DATA_PATH)
+    if task_name.endswith("_adjoint"):
+        path_parts = basename(path).split(".")
+        path = join(dirname(path), path_parts[0] + "_adjoint." + ".".join(path_parts[1:]))
+    data = job.run(path)
     return data, job.task_id
 
 
-def _run_tidy3d_bwd(
-    simulation: td.Simulation, task_name: str, adjoint_source_info: AdjointSourceInfo, **run_kwargs
-) -> AutogradFieldMap:
+def _run_tidy3d_bwd(simulation: td.Simulation, task_name: str, **run_kwargs) -> AutogradFieldMap:
     """Run a simulation without any tracers using regular web.run()."""
     job_init_kwargs = parse_run_kwargs(**run_kwargs)
     job = Job(simulation=simulation, task_name=task_name, **job_init_kwargs)
-    verbose = run_kwargs.get("verbose", False)
-    upload_adjoint_source_info(adjoint_source_info, task_id=job.task_id, verbose=verbose)
     td.log.info(f"running {job.simulation_type} simulation with '_run_tidy3d_bwd()'")
     job.start()
     job.monitor()
@@ -908,7 +966,6 @@ def _run_async_tidy3d(
 
 def _run_async_tidy3d_bwd(
     simulations: dict[str, td.Simulation],
-    adjoint_source_info_dict: dict[str, AdjointSourceInfo],
     **run_kwargs,
 ) -> dict[str, AutogradFieldMap]:
     """Run a simulation without any tracers using regular web.run()."""
@@ -917,11 +974,6 @@ def _run_async_tidy3d_bwd(
     _ = run_kwargs.pop("path_dir")
     batch = Batch(simulations=simulations, **batch_init_kwargs)
     td.log.info(f"running {batch.simulation_type} simulation with '_run_tidy3d_bwd()'")
-
-    task_ids = {key: job.task_id for key, job in batch.jobs.items()}
-    for task_name, adjoint_source_info in adjoint_source_info_dict.items():
-        task_id = task_ids[task_name]
-        upload_adjoint_source_info(adjoint_source_info, task_id=task_id, verbose=batch.verbose)
 
     batch.start()
     batch.monitor()

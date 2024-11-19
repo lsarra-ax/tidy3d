@@ -101,7 +101,7 @@ class SourceTime(AbstractTimeDependence):
         """Frequency range within plus/minus ``num_fwidth * fwidth`` of the central frequency."""
 
     @abstractmethod
-    def end_time(self) -> float | None:
+    def end_time(self) -> Optional[float]:
         """Time after which the source is effectively turned off / close to zero amplitude."""
 
 
@@ -192,7 +192,7 @@ class GaussianPulse(Pulse):
 
         return pulse_amp
 
-    def end_time(self) -> float | None:
+    def end_time(self) -> Optional[float]:
         """Time after which the source is effectively turned off / close to zero amplitude."""
 
         # TODO: decide if we should continue to return an end_time if the DC component remains
@@ -251,7 +251,7 @@ class ContinuousWave(Pulse):
 
         return const * offset * oscillation * amp
 
-    def end_time(self) -> float | None:
+    def end_time(self) -> Optional[float]:
         """Time after which the source is effectively turned off / close to zero amplitude."""
         return None
 
@@ -420,7 +420,7 @@ class CustomSourceTime(Pulse):
 
         return offset * oscillation * amp * envelope
 
-    def end_time(self) -> float | None:
+    def end_time(self) -> Optional[float]:
         """Time after which the source is effectively turned off / close to zero amplitude."""
 
         if self.source_time_dataset is None:
@@ -1134,6 +1134,14 @@ class GaussianBeam(AngledFieldSource, PlanarSource, BroadbandSource):
     ...     direction='+',
     ...     waist_radius=1.0)
 
+    Notes
+    --------
+    If one wants the focus 'in front' of the source, a negative value of ``beam_distance`` is needed.
+
+    .. image:: ../../_static/img/beam_waist.png
+        :width: 30%
+        :align: center
+
     See Also
     --------
 
@@ -1152,10 +1160,11 @@ class GaussianBeam(AngledFieldSource, PlanarSource, BroadbandSource):
         0.0,
         title="Waist Distance",
         description="Distance from the beam waist along the propagation direction. "
-        "When ``direction`` is ``+`` and ``waist_distance`` is positive, the waist "
-        "is on the ``-`` side (behind) the source plane. When ``direction`` is ``+`` and "
-        " ``waist_distance``is negative, the waist is on the ``+`` side (in front) of "
-        "the source plane.",
+        "A positive value means the waist is positioned behind the source, considering the propagation direction. "
+        "For example, for a beam propagating in the ``+`` direction, a positive value of ``beam_distance`` "
+        "means the beam waist is positioned in the ``-`` direction (behind the source). "
+        "A negative value means the beam waist is in the ``+`` direction (in front of the source). "
+        "For an angled source, the distance is defined along the rotated propagation direction.",
         units=MICROMETER,
     )
 
@@ -1213,10 +1222,11 @@ class TFSF(AngledFieldSource, VolumeSource):
     Notes
     -----
 
-        The TFSF source injects :math:`\\frac{1 W}{\\mu m^2}` of power along the :attr:`injection_axis`. Note that in the
-        case of angled incidence, :math:`\\frac{1 W}{\\mu m^2}` is still injected along the source's :attr:`injection_axis`,
-        and not the propagation direction, unlike a :class:`PlaneWave` source. This allows computing
-        scattering and absorption cross-sections without the need for additional normalization.
+        The TFSF source injects :math:`1 W` of power per :math:`\\mu m^2` of source area along the :attr:`injection_axis`.
+        Hence, the normalization for the incident field is :math:`|E_0|^2 = \\frac{2}{c\\epsilon_0}`, for any source size.
+        Note that in the case of angled incidence, the same power is injected along the source's :attr:`injection_axis`,
+        and not the propagation direction. This allows computing scattering and absorption cross-sections
+        without the need for additional normalization.
 
         The TFSF source allows specifying a box region into which a plane wave is injected. Fields inside this region
         can be interpreted as the superposition of the incident field and the scattered field due to any scatterers

@@ -1,9 +1,99 @@
+# Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.8.0rc1]
+
+## [2.7.7] - 2024-11-15
+
+### Added
+- Autograd support for local field projections using `FieldProjectionKSpaceMonitor`.
+- Function `components.geometry.utils.flatten_groups` now also flattens transformed groups when requested.
+- Differentiable `smooth_min`, `smooth_max`, and `least_squares` functions in `tidy3d.plugins.autograd`.
+- Differential operators `grad` and `value_and_grad` in `tidy3d.plugins.autograd` that behave similarly to the autograd operators but support auxiliary data via `aux_data=True` as well as differentiation w.r.t. `DataArray`.
+- `@scalar_objective` decorator in `tidy3d.plugins.autograd` that wraps objective functions to ensure they return a scalar value and performs additional checks to ensure compatibility of objective functions with autograd. Used by default in `tidy3d.plugins.autograd.value_and_grad` as well as `tidy3d.plugins.autograd.grad`.
+- Autograd support for simulations without adjoint sources in `run` as well as `run_async`, which will not attempt to run the simulation but instead return zero gradients. This can sometimes occur if the objective function gradient does not depend on some simulations, for example when using `min` or `max` in the objective.
+
+### Changed
+- `CustomMedium` design regions require far less data when performing inverse design by reducing adjoint field monitor size for dims with one pixel.
+- Calling `.values` on `DataArray` no longer raises a `DeprecationWarning` during automatic differentiation.
+- Minimum number of PML layers set to 6.
+- `Structure.background_permittivity : float` for specifying background medium for shape differentiation deprecated in favor of `Structure.background_medium : Medium` for more generality.
+- Validate mode objects so that if a bend radius is defined, it is not smaller than half the size of the modal plane along the radial direction (i.e. the bend center is not inside the mode plane).
+
+### Fixed
+- Regression in local field projection leading to incorrect projection results.
+- Bug when differentiating with respect to `Cylinder.center`.
+- `xarray` 2024.10.0 compatibility for autograd.
+- Some failing examples in the expressions plugin documentation.
+- Inaccuracy in transforming gradients from edge to `PolySlab.vertices`.
+- Bug in `run_async` where an adjoint simulation would sometimes be assigned to the wrong forward simulation.
+- Validate against nonlinearity or modulation in `FullyAnisotropicMedium.from_diagonal`.
+- Add warning to complex-field nonlinearities, which may require more careful physical interpretation.
+
+
+## [2.7.6] - 2024-10-30
+
+### Added
+- Users can pass the `shading` argument in the `SimulationData.plot_field` to `Xarray.plot` method. When `shading='gouraud'`, the image is interpolated, producing a smoother visualization.
+- Users can manually specify the background medium for a structure to be used for geometry gradient calculations by supplying `Structure.background_permittivity`. This is useful when there are overlapping structures or structures embedded in other mediums.
+- Autograd functions can now be called directly on `DataArray` (e.g., `np.sum(data_array)`) in objective functions.
+- Automatic differentiation support for local field projections with `FieldProjectionAngleMonitor` and `FieldProjectionCartesianMonitor` using `FieldProjector.project_fields(far_field_monitor)`.
+
+### Changed
+- Improved autograd tracer handling in `DataArray`, resulting in significant speedups for differentiation involving large monitors.
+- Triangulation of `PolySlab` polygons now supports polygons with collinear vertices.
+- Frequency and wavelength utilities under `tidy3d.frequencies` and `tidy3d.wavelengths`.
+
+### Fixed
+- Minor gradient direction and normalization fixes for polyslab, field monitors, and diffraction monitors in autograd.
+- Resolved an issue where temporary files for adjoint simulations were not being deleted properly.
+- Resolve several edge cases where autograd boxes were incorrectly converted to numpy arrays.
+- Resolve issue where scalar frequencies in metric definitions (`ModeAmp(f=freq)` instead of `ModeAmp(f=[freq])`) would erroneously fail validation.
+
+## [2.7.5] - 2024-10-16
+
+### Added
+- `TopologyDesignRegion` is now invariant in `z` by default and supports assigning dimensions along which a design should be uniform via `TopologyDesignRegion(uniform=(bool, bool, bool))`.
+- Support for arbitrary padding sizes for all padding modes in `tidy3d.plugins.autograd.functions.pad`.
+- `Expression.filter(target_type, target_field)` method for extracting object instances and fields from nested expressions.
+- Additional constraints and validation logic to ensure correct setup of optimization problems in `invdes` plugin.
+- `tidy3d.plugins.pytorch` to wrap autograd functions for interoperability with PyTorch via the `to_torch` wrapper.
+
+### Changed
+- Renamed `Metric.freqs` --> `Metric.f` and made frequency argument optional, in which case all frequencies from the relevant monitor will be extracted. Metrics can still be initialized with both `f` or `freqs`.
+
+### Fixed
+- Some validation fixes for design region.
+- Bug in adjoint source creation that included empty sources for extraneous `FieldMonitor` objects, triggering unnecessary errors.
+- Correct sign in objective function history depending on `Optimizer.maximize`.
+- Fix to batch mode solver run that could create multiple copies of the same folder.
+- Fixed ``ModeSolver.plot`` method when the simulation is not at the origin.
+- Gradient calculation is orders of magnitude faster for large datasets and many structures by applying more efficient handling of field interpolation and passing to structures.
+- Bug with infinite coordinates in `ClipOperation` not working with shapely.
+
+## [2.7.4] - 2024-09-25
+
+### Added
+- New `tidy3d.plugins.expressions` module for constructing and serializing mathematical expressions and simulation metrics like `ModeAmp` and `ModePower`.
+- Support for serializable expressions in the `invdes` plugin (`InverseDesign(metric=ModePower(...))`).
+- Added `InitializationSpec` as the default way to initialize design region parameters in the `invdes` plugin (`DesignRegion(initialization_spec=RandomInitializationSpec(...))`).
+- Callback support in `invdes.Optimizer` and support for running the optimizer for a fixed number of steps via the `num_steps` argument in `Optimizer.continue_run()`.
+- Convenience method `Structure.from_permittivity_array(geometry, eps_data)`, which creates structure containing `CustomMedium` with `eps_data` array sampled within `geometry.bounds`.
+
+### Changed
+- All filter functions in `plugins/autograd` now accept either an absolute size in pixels or a `radius` and `dl` argument.
+- Reverted fix for TFSF close to simulation boundaries that was introduced in 2.7.3 as it could cause different results in some cases with nonuniform mesh along the propagation direction.
+
+### Fixed
+- Ensure `path` argument in `run()` function is respected when running under autograd or the adjoint plugin.
+- Bug in `Simulation.subsection` (used in the mode solver) when nonlinear materials rely on information about sources outside of the region.
+
+
+## [2.7.3] - 2024-09-12
 
 ### Added
 - Support for differentiation with respect to `ComplexPolySlab.vertices`.
@@ -47,6 +137,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fields stored in `ModeMonitor` objects were computed colocated to the grid boundaries, but the built-in `ModeMonitor.colocate=False` was resulting in wrong results in some cases, most notably if symmetries are also involved.
 - Small inaccuracy when applying a mode solver `bend_radius` when the simulation grid is not symmetric w.r.t. the mode plane center. Previously, the radius was defined w.r.t. the middle grid coordinate, while now it is correctly applied w.r.t. the plane center.
 - Silence warning in graphene from checking fit quality at large frequencies.
+- Added value_and_grad function to the autograd plugin, importable via `from tidy3d.plugins.autograd import value_and_grad`. Supports differentiating functions with auxiliary data (`value_and_grad(f, has_aux=True)`).
+- `Simulation.num_computational_grid_points` property to examine the number of grid cells that compose the computational domain corresponding to the simulation. This can differ from `Simulation.num_cells` based on boundary conditions and symmetries.
+- Support for `dilation` argument in `JaxPolySlab`.
+- Support for autograd differentiation with respect to `Cylinder.radius` and `Cylinder.center` (for elements not along axis dimension).
+- `Cylinder.to_polyslab(num_pts_circumference, **kwargs)` to convert a cylinder into a discretized version represented by a `PolySlab`.
+- `tidy3d.plugins.invdes.Optimizer` now accepts an optional optimization direction via the `maximize` argument (defaults to `maximize=True`).
+
+### Changed
+- `PolySlab` now raises error when differentiating and dilation causes damage to the polygon.
+- Validator `boundaries_for_zero_dims` to raise error when Bloch boundaries are used along 0-sized dims.
+- `FieldProjectionKSpaceMonitor` support for 2D simulations with `far_field_approx = True`. 
+
+### Fixed
+- `DataArray` interpolation failure due to incorrect ordering of coordinates when interpolating with autograd tracers.
+- Error in `CustomSourceTime` when evaluating at a list of times entirely outside of the range of the envelope definition times.
+- Improved passivity enforcement near high-Q poles in `FastDispersionFitter`. Failed passivity enforcement could lead to simulation divergences.
+- More helpful error and suggestion if users try to differentiate w.r.t. unsupported `FluxMonitor` output.
+- Removed positive warnings in Simulation validators for Bloch boundary conditions.
+- Improve accuracy in `Box` shifting boundary gradients.
+- Improve accuracy in `FieldData` operations involving H fields (like `.flux`).
+- Better error and warning handling in autograd pipeline.
+- Added the option to specify the `num_freqs` argument and `kwargs` to the `.to_source` method for both `ModeSolver` and `ComponentModeler`.
+- Fixes to TFSF source in some 2D simulations, and in some cases when the injection plane is close to the simulation domain boundaries.
 
 ## [2.7.2] - 2024-08-07
 
@@ -71,6 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error when plotting mode plane PML and the simulation has symmetry.
 - Validators using `TriangleMesh.intersections_plane` will fall back on bounding box in case the method fails for a non-watertight mesh.
 - Bug when running the same `ModeSolver` first locally then remotely, or vice versa, in which case the cached data from the first run is always returned.
+- Gradient monitors for `PolySlab` only store fields at the center location along axis, reducing data usage.
+- Validate the forward simulation on the client side even when using `local_gradient=False` for server-side gradient processing.
+- Gradient inaccuracies in `PolySlab.vertices`, `Medium.conductivity`, and `DiffractionData` s-polarization.
+- Adjoint field monitors no longer store H fields, which aren't needed for gradient calculation.
+- `MeshOverrideStructures` in a `Simulation.GridSpec` are properly handled to remove any derivative tracers.
 
 ## [2.7.1] - 2024-07-10
 
@@ -1312,6 +1430,13 @@ which fields are to be projected is now determined automatically based on the me
 
 [Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.8.0rc1...pre/2.8
 [2.8.0rc1]: https://github.com/flexcompute/tidy3d/compare/v2.7.1...v2.8.0rc1
+[Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.7.7...develop
+[2.7.7]: https://github.com/flexcompute/tidy3d/compare/v2.7.6...v2.7.7
+[2.7.6]: https://github.com/flexcompute/tidy3d/compare/v2.7.5...v2.7.6
+[2.7.5]: https://github.com/flexcompute/tidy3d/compare/v2.7.4...v2.7.5
+[2.7.4]: https://github.com/flexcompute/tidy3d/compare/v2.7.3...v2.7.4
+[2.7.3]: https://github.com/flexcompute/tidy3d/compare/v2.7.2...v2.7.3
+[2.7.2]: https://github.com/flexcompute/tidy3d/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/flexcompute/tidy3d/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/flexcompute/tidy3d/compare/v2.6.4...v2.7.0
 [2.6.4]: https://github.com/flexcompute/tidy3d/compare/v2.6.3...v2.6.4

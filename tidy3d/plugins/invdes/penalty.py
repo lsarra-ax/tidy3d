@@ -7,7 +7,7 @@ import autograd.numpy as anp
 import pydantic.v1 as pd
 
 from tidy3d.constants import MICROMETER
-from tidy3d.plugins.autograd.invdes import get_kernel_size_px, make_erosion_dilation_penalty
+from tidy3d.plugins.autograd.invdes import make_erosion_dilation_penalty
 
 from .base import InvdesBaseModel
 
@@ -48,7 +48,7 @@ class ErosionDilationPenalty(AbstractPenalty):
 
     """
 
-    length_scale: pd.NonNegativeFloat = pd.Field(
+    length_scale: pd.PositiveFloat = pd.Field(
         ...,
         title="Length Scale",
         description="Length scale of erosion and dilation. "
@@ -58,24 +58,29 @@ class ErosionDilationPenalty(AbstractPenalty):
         units=MICROMETER,
     )
 
-    beta: pd.PositiveFloat = pd.Field(
+    beta: float = pd.Field(
         100.0,
+        ge=1.0,
         title="Projection Beta",
         description="Strength of the ``tanh`` projection. "
         "Corresponds to ``beta`` in the :class:`BinaryProjector. "
         "Higher values correspond to stronger discretization.",
     )
 
-    eta0: pd.PositiveFloat = pd.Field(
+    eta0: float = pd.Field(
         0.5,
+        ge=0.0,
+        le=1.0,
         title="Projection Midpoint",
         description="Value between 0 and 1 that sets the projection midpoint. In other words, "
         "for values of ``eta0``, the projected values are halfway between minimum and maximum. "
         "Corresponds to ``eta`` in the :class:`BinaryProjector`.",
     )
 
-    delta_eta: pd.PositiveFloat = pd.Field(
+    delta_eta: float = pd.Field(
         0.01,
+        ge=0.0,
+        le=1.0,
         title="Delta Eta Cutoff",
         description="The binarization threshold for erosion and dilation operations "
         "The thresholds are ``0 + delta_eta`` on the low end and ``1 - delta_eta`` on the high end. "
@@ -85,9 +90,8 @@ class ErosionDilationPenalty(AbstractPenalty):
 
     def evaluate(self, x: anp.ndarray, pixel_size: float) -> float:
         """Evaluate this penalty."""
-        filter_size = get_kernel_size_px(self.length_scale, pixel_size)
         penalty_fn = make_erosion_dilation_penalty(
-            filter_size, self.beta, self.eta0, self.delta_eta
+            self.length_scale, pixel_size, beta=self.beta, eta=self.eta0, delta_eta=self.delta_eta
         )
         penalty_unweighted = penalty_fn(x)
         return self.weight * penalty_unweighted

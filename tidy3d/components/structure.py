@@ -4,20 +4,24 @@ from __future__ import annotations
 
 import pathlib
 from collections import defaultdict
-from typing import Callable, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
+import autograd.numpy as anp
 import numpy as np
 import pydantic.v1 as pydantic
 
-from ..constants import MICROMETER, PERMITTIVITY
+from ..constants import MICROMETER
 from ..exceptions import SetupError, Tidy3dError, Tidy3dImportError
+from ..log import log
 from .autograd.derivative_utils import DerivativeInfo
-from .autograd.types import AutogradFieldMap
+from .autograd.types import AutogradFieldMap, Box
 from .autograd.utils import get_static
 from .base import Tidy3dBaseModel, skip_if_fields_missing
+from .data.data_array import ScalarFieldDataArray
+from .geometry.polyslab import PolySlab
 from .geometry.utils import GeometryType, validate_no_transformed_polyslabs
 from .grid.grid import Coords
-from .medium import AbstractCustomMedium, Medium2D, MediumType
+from .medium import AbstractCustomMedium, CustomMedium, Medium, Medium2D, MediumType
 from .monitor import FieldMonitor, PermittivityMonitor
 from .types import TYPE_TAG_STR, Ax, Axis
 from .validators import validate_name_str
@@ -54,10 +58,46 @@ class AbstractStructure(Tidy3dBaseModel):
         None,
         ge=1.0,
         title="Background Permittivity",
-        description="Relative permittivity used for the background of this structure "
+        description="DEPRECATED: Use ``Structure.background_medium``. "
+        "Relative permittivity used for the background of this structure "
         "when performing shape optimization with autograd.",
-        units=PERMITTIVITY,
     )
+
+    background_medium: MediumType = pydantic.Field(
+        None,
+        title="Background Medium",
+        description="Medium used for the background of this structure "
+        "when performing shape optimization with autograd. This is required when the "
+        "structure is embedded in another structure as autograd will use the permittivity of the "
+        "``Simulation`` by default to compute the shape derivatives.",
+    )
+
+    @pydantic.root_validator(skip_on_failure=True)
+    def _handle_background_mediums(cls, values):
+        """Handle background medium combinations, including deprecation."""
+
+        background_permittivity = values.get("background_permittivity")
+        background_medium = values.get("background_medium")
+
+        # old case, only permittivity supplied, warn and set the Medium automatically
+        if background_medium is None and background_permittivity is not None:
+            log.warning(
+                "'Structure.background_permittivity' is deprecated, "
+                "set the 'Structure.background_medium' directly using a 'Medium'. "
+                "Handling automatically using the supplied relative permittivity."
+            )
+            values["background_medium"] = Medium(permittivity=background_permittivity)
+
+        # both present, just make sure they are consistent, error if not
+        if background_medium is not None and background_permittivity is not None:
+            is_medium = isinstance(background_medium, Medium)
+            if not (is_medium and background_medium.permittivity == background_permittivity):
+                raise ValueError(
+                    "Inconsistent 'background_permittivity' and 'background_medium'. "
+                    "Use 'background_medium' only as 'background_permittivity' is deprecated."
+                )
+
+        return values
 
     _name_validator = validate_name_str()
 
@@ -212,13 +252,33 @@ class Structure(AbstractStructure):
         box = self.geometry.bounding_box
 
         # we dont want these fields getting traced by autograd, otherwise it messes stuff up
-        size = tuple(get_static(x) for x in box.size)  # TODO: expand slightly?
-        center = tuple(get_static(x) for x in box.center)
+
+        size = [get_static(x) for x in box.size]  # TODO: expand slightly?
+        center = [get_static(x) for x in box.center]
+
+        # polyslab only needs fields at the midpoint along axis
+        if isinstance(self.geometry, PolySlab):
+            size[self.geometry.axis] = 0
+
+        # custom medium only needs fields at center locations of unit cells.
+        if isinstance(self.medium, CustomMedium):
+            for axis, dim in enumerate("xyz"):
+                if self.medium.permittivity is not None:
+                    if len(self.medium.permittivity.coords[dim]) == 1:
+                        size[axis] = 0
+                if self.medium.eps_dataset is not None:
+                    zero_size = True
+                    for _, fld in self.medium.eps_dataset.field_components.items():
+                        if len(fld.coords[dim]) != 1:
+                            zero_size = False
+                    if zero_size:
+                        size[axis] = 0
 
         mnt_fld = FieldMonitor(
             size=size,
             center=center,
             freqs=freqs,
+            fields=("Ex", "Ey", "Ez"),
             name=self.get_monitor_name(index=index, data_type="fld"),
             colocate=False,
         )
@@ -232,24 +292,6 @@ class Structure(AbstractStructure):
         )
 
         return mnt_fld, mnt_eps
-
-    @property
-    def derivative_function_map(self) -> dict[tuple[str, str], Callable]:
-        """Map path to the right derivative function function."""
-        return {
-            ("medium", "permittivity"): self.derivative_medium_permittivity,
-            ("medium", "conductivity"): self.derivative_medium_conductivity,
-            ("geometry", "size"): self.derivative_geometry_size,
-            ("geometry", "center"): self.derivative_geometry_center,
-        }
-
-    def get_derivative_function(self, path: tuple[str, ...]) -> Callable:
-        """Get the derivative function function."""
-
-        derivative_map = self.derivative_function_map
-        if path not in derivative_map:
-            raise NotImplementedError(f"Can't compute derivative for structure field path: {path}.")
-        return derivative_map[path]
 
     def compute_derivatives(self, derivative_info: DerivativeInfo) -> AutogradFieldMap:
         """Compute adjoint gradients given the forward and adjoint fields"""
@@ -274,7 +316,7 @@ class Structure(AbstractStructure):
         for med_or_geo, field_paths in structure_fields_map.items():
             # grab derivative values {field_name -> vjp_value}
             med_or_geo_field = self.medium if med_or_geo == "medium" else self.geometry
-            info = derivative_info.updated_copy(paths=field_paths)
+            info = derivative_info.updated_copy(paths=field_paths, deep=False)
             derivative_values_map = med_or_geo_field.compute_derivatives(derivative_info=info)
 
             # construct map of {field path -> derivative value}
@@ -536,6 +578,66 @@ class Structure(AbstractStructure):
         )
         pathlib.Path(fname).parent.mkdir(parents=True, exist_ok=True)
         library.write_gds(fname)
+
+    @classmethod
+    def from_permittivity_array(
+        cls, geometry: GeometryType, eps_data: np.ndarray, **kwargs
+    ) -> Structure:
+        """Create ``Structure`` with ``geometry`` and ``CustomMedium`` containing ``eps_data`` for
+        The ``permittivity`` field.   Extra keyword arguments are passed to ``td.Structure()``.
+        """
+
+        rmin, rmax = geometry.bounds
+
+        if not isinstance(eps_data, (np.ndarray, Box, list, tuple)):
+            raise ValueError("Must supply array-like object for 'eps_data'.")
+
+        eps_data = anp.array(eps_data)
+        shape = eps_data.shape
+
+        if len(shape) != 3:
+            raise ValueError(
+                "'Structure.from_permittivity_array' method only accepts 'eps_data' with 3 dimensions, "
+                f"corresponding to (x,y,z). Got array with {len(shape)} dimensions."
+            )
+
+        coords = {}
+        for key, pt_min, pt_max, num_pts in zip("xyz", rmin, rmax, shape):
+            if np.isinf(pt_min) and np.isinf(pt_max):
+                pt_min = 0.0
+                pt_max = 0.0
+
+            coords_2x = np.linspace(pt_min, pt_max, 2 * num_pts + 1)
+            coords_centers = coords_2x[1:-1:2]
+
+            if len(coords_centers) != num_pts:
+                raise ValueError(
+                    "something went wrong, different number of coordinate values and data values. "
+                    "Check your 'geometry', 'eps_data', and file a bug report."
+                )
+
+            # handle infinite size dimension edge case
+            coords_centers = np.nan_to_num(coords_centers, 0.0)
+
+            _, count = np.unique(coords_centers, return_counts=True)
+            if np.any(count > 1):
+                raise ValueError(
+                    "Found duplicates in the coordinates constructed from the supplied "
+                    "'geometry' and 'eps_data'. This is likely due to having a geometry with an "
+                    "infinite size in one dimension and a 'eps_data' with a 'shape' > 1 in that "
+                    "dimension. "
+                )
+
+            coords[key] = coords_centers
+
+        eps_data_array = ScalarFieldDataArray(eps_data, coords=coords)
+        custom_med = CustomMedium(permittivity=eps_data_array)
+
+        return Structure(
+            geometry=geometry,
+            medium=custom_med,
+            **kwargs,
+        )
 
 
 class MeshOverrideStructure(AbstractStructure):

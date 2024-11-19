@@ -46,7 +46,7 @@ RESIDUAL_CUTOFF_ADJOINT = 1e-6
 class AdjointSourceInfo(Tidy3dBaseModel):
     """Stores information about the adjoint sources to pass to autograd pipeline."""
 
-    sources: tuple[SourceType, ...] = pd.Field(
+    sources: Tuple[annotate_type(SourceType), ...] = pd.Field(
         ...,
         title="Adjoint Sources",
         description="Set of processed sources to include in the adjoint simulation.",
@@ -447,6 +447,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
         vmin: float = None,
         vmax: float = None,
         ax: Ax = None,
+        shading: str = "flat",
         **sel_kwargs,
     ) -> Ax:
         """Plot the field data for a monitor with simulation plot overlaid.
@@ -481,6 +482,8 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             inferred from the data and other keyword arguments.
         ax : matplotlib.axes._subplots.Axes = None
             matplotlib axes to plot on, if not specified, one is created.
+        shading: str = 'flat'
+            Shading argument for Xarray plot method ('flat','nearest','goraud')
         sel_kwargs : keyword arguments used to perform ``.sel()`` selection in the monitor data.
             These kwargs can select over the spatial dimensions (``x``, ``y``, ``z``),
             frequency or time dimensions (``f``, ``t``) or ``mode_index``, if applicable.
@@ -493,7 +496,6 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
         matplotlib.axes._subplots.Axes
             The supplied or created matplotlib axes.
         """
-
         # get the DataArray corresponding to the monitor_name and field_name
         # deprecated intensity
         if field_name == "int":
@@ -640,6 +642,8 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             vmax=vmax,
             cmap_type=cmap_type,
             ax=ax,
+            shading=shading,
+            infer_intervals=True if shading == "flat" else False,
         )
 
     def plot_field(
@@ -654,6 +658,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
         vmin: float = None,
         vmax: float = None,
         ax: Ax = None,
+        shading: str = "flat",
         **sel_kwargs,
     ) -> Ax:
         """Plot the field data for a monitor with simulation plot overlaid.
@@ -689,6 +694,8 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             inferred from the data and other keyword arguments.
         ax : matplotlib.axes._subplots.Axes = None
             matplotlib axes to plot on, if not specified, one is created.
+        shading: str = 'flat'
+            Shading argument for Xarray plot method ('flat','nearest','goraud')
         sel_kwargs : keyword arguments used to perform ``.sel()`` selection in the monitor data.
             These kwargs can select over the spatial dimensions (``x``, ``y``, ``z``),
             frequency or time dimensions (``f``, ``t``) or ``mode_index``, if applicable.
@@ -703,6 +710,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
         """
 
         field_monitor_data = self.load_field_monitor(field_monitor_name)
+
         return self.plot_field_monitor_data(
             field_monitor_data=field_monitor_data,
             field_name=field_name,
@@ -714,6 +722,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             vmin=vmin,
             vmax=vmax,
             ax=ax,
+            shading=shading,
             **sel_kwargs,
         )
 
@@ -731,6 +740,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
         vmax: float = None,
         cmap_type: ColormapType = "divergent",
         ax: Ax = None,
+        **kwargs,
     ) -> Ax:
         """Plot the field data for a monitor with simulation plot overlaid.
 
@@ -763,6 +773,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             Type of color map to use for plotting.
         ax : matplotlib.axes._subplots.Axes = None
             matplotlib axes to plot on, if not specified, one is created.
+        **kwargs : Extra arguments to ``DataArray.plot``.
 
         Returns
         -------
@@ -802,6 +813,7 @@ class AbstractYeeGridSimulationData(AbstractSimulationData, ABC):
             robust=robust,
             center=center,
             cbar_kwargs={"label": field_data.name},
+            **kwargs,
         )
 
         # plot the simulation epsilon
@@ -1021,8 +1033,10 @@ class SimulationData(AbstractYeeGridSimulationData):
         return sim_data_original, sim_data_fwd
 
     def make_adjoint_sim(
-        self, data_vjp_paths: set[tuple], adjoint_monitors: list[Monitor]
-    ) -> tuple[Simulation, AdjointSourceInfo]:
+        self,
+        data_vjp_paths: set[tuple],
+        adjoint_monitors: list[Monitor],
+    ) -> Simulation | None:
         """Make the adjoint simulation from the original simulation and the VJP-containing data."""
 
         sim_original = self.simulation
@@ -1032,6 +1046,9 @@ class SimulationData(AbstractYeeGridSimulationData):
         adj_srcs = []
         for src_list in sources_adj_dict.values():
             adj_srcs += list(src_list)
+
+        if not any(adj_srcs):
+            return None
 
         adjoint_source_info = self.process_adjoint_sources(adj_srcs=adj_srcs)
 
@@ -1043,6 +1060,7 @@ class SimulationData(AbstractYeeGridSimulationData):
             sources=adjoint_source_info.sources,
             boundary_spec=bc_adj,
             monitors=adjoint_monitors,
+            post_norm=adjoint_source_info.post_norm,
         )
 
         if not adjoint_source_info.normalize_sim:
@@ -1055,7 +1073,7 @@ class SimulationData(AbstractYeeGridSimulationData):
             grid_spec_adj = grid_spec_original.updated_copy(wavelength=wavelength_original)
             sim_adj_update_dict["grid_spec"] = grid_spec_adj
 
-        return sim_original.updated_copy(**sim_adj_update_dict), adjoint_source_info
+        return sim_original.updated_copy(**sim_adj_update_dict)
 
     def make_adjoint_sources(self, data_vjp_paths: set[tuple]) -> dict[str, SourceType]:
         """Generate all of the non-zero sources for the adjoint simulation given the VJP data."""

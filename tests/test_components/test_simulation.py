@@ -108,6 +108,27 @@ def test_sim_init():
     sim.epsilon(m)
 
 
+def test_num_cells():
+    """Test num_cells and num_computational_grid_points."""
+
+    sim = td.Simulation(
+        size=(1, 1, 1),
+        run_time=1e-12,
+        grid_spec=td.GridSpec.uniform(dl=0.1),
+        sources=[
+            td.PointDipole(
+                center=(0, 0, 0),
+                polarization="Ex",
+                source_time=td.GaussianPulse(freq0=2e14, fwidth=1e14),
+            )
+        ],
+    )
+    assert sim.num_computational_grid_points > sim.num_cells  # due to extra pixels at boundaries
+
+    sim = sim.updated_copy(symmetry=(1, 0, 0))
+    assert sim.num_computational_grid_points < sim.num_cells  # due to symmetry
+
+
 def test_monitors_data_size():
     """make sure a simulation can be initialized"""
 
@@ -402,6 +423,14 @@ def test_validate_plane_wave_boundaries(log_capture):
         angle_theta=np.pi / 4,
     )
 
+    mnt = td.DiffractionMonitor(
+        center=(0, 0, 0),
+        size=(td.inf, td.inf, 0),
+        freqs=[250e12, 300e12],
+        name="monitor_diffraction",
+        normal_dir="+",
+    )
+
     bspec1 = td.BoundarySpec(
         x=td.Boundary.pml(),
         y=td.Boundary.absorber(),
@@ -459,6 +488,7 @@ def test_validate_plane_wave_boundaries(log_capture):
             run_time=1e-12,
             sources=[src2],
             boundary_spec=bspec3,
+            monitors=[mnt],
         )
 
     # angled incidence plane wave with wrong Bloch vector should warn
@@ -807,9 +837,9 @@ def test_sim_structure_gap(log_capture, box_size, log_level):
         structures=[box],
         sources=[src],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
-            y=td.Boundary.pml(num_layers=5),
-            z=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
+            y=td.Boundary.pml(num_layers=6),
+            z=td.Boundary.pml(num_layers=6),
         ),
         run_time=1e-12,
     )
@@ -2022,9 +2052,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
             structures=[struct],
             sources=[src],
             boundary_spec=td.BoundarySpec(
-                x=td.Boundary.pml(num_layers=5),
-                y=td.Boundary.pml(num_layers=5),
-                z=td.Boundary.pml(num_layers=5),
+                x=td.Boundary.pml(num_layers=6),
+                y=td.Boundary.pml(num_layers=6),
+                z=td.Boundary.pml(num_layers=6),
             ),
             grid_spec=td.GridSpec.uniform(dl=grid_dl),
             run_time=1e-12,
@@ -2064,9 +2094,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
         sources=[src],
         monitors=[monitor],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
-            y=td.Boundary.pml(num_layers=5),
-            z=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
+            y=td.Boundary.pml(num_layers=6),
+            z=td.Boundary.pml(num_layers=6),
         ),
         grid_spec=td.GridSpec.uniform(dl=grid_dl),
         run_time=1e-12,
@@ -2089,9 +2119,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
         sources=[src],
         monitors=[monitor],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
-            y=td.Boundary.pml(num_layers=5),
-            z=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
+            y=td.Boundary.pml(num_layers=6),
+            z=td.Boundary.pml(num_layers=6),
         ),
         grid_spec=td.GridSpec.uniform(dl=grid_dl),
         run_time=1e-12,
@@ -2120,9 +2150,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
         structures=[below_half, box],
         sources=[src],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
-            y=td.Boundary.pml(num_layers=5),
-            z=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
+            y=td.Boundary.pml(num_layers=6),
+            z=td.Boundary.pml(num_layers=6),
         ),
         grid_spec=td.GridSpec.uniform(dl=grid_dl),
         run_time=1e-12,
@@ -2136,9 +2166,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
         structures=[box, below],
         sources=[src],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
-            y=td.Boundary.pml(num_layers=5),
-            z=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
+            y=td.Boundary.pml(num_layers=6),
+            z=td.Boundary.pml(num_layers=6),
         ),
         grid_spec=td.GridSpec.uniform(dl=grid_dl),
         run_time=1e-12,
@@ -2154,9 +2184,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
             sources=[src],
             medium=box.medium,
             boundary_spec=td.BoundarySpec(
-                x=td.Boundary.pml(num_layers=5),
-                y=td.Boundary.pml(num_layers=5),
-                z=td.Boundary.pml(num_layers=5),
+                x=td.Boundary.pml(num_layers=6),
+                y=td.Boundary.pml(num_layers=6),
+                z=td.Boundary.pml(num_layers=6),
             ),
             grid_spec=td.GridSpec.uniform(dl=grid_dl),
             run_time=1e-12,
@@ -2183,9 +2213,9 @@ def test_sim_volumetric_structures(log_capture, tmp_path):
             structures=[struct],
             sources=[src],
             boundary_spec=td.BoundarySpec(
-                x=td.Boundary.pml(num_layers=5),
-                y=td.Boundary.pml(num_layers=5),
-                z=td.Boundary.pml(num_layers=5),
+                x=td.Boundary.pml(num_layers=6),
+                y=td.Boundary.pml(num_layers=6),
+                z=td.Boundary.pml(num_layers=6),
             ),
             grid_spec=td.GridSpec.uniform(dl=grid_dl),
             run_time=1e-12,
@@ -2430,7 +2460,10 @@ def test_sim_subsection(unstructured, nz, log_capture):
     sim_red = SIM_FULL.subsection(region=region, monitors=[])
     assert len(sim_red.monitors) == 0
     sim_red = SIM_FULL.subsection(region=region, remove_outside_structures=False)
-    assert sim_red.structures == SIM_FULL.structures
+    assert len(sim_red.structures) == len(SIM_FULL.structures)
+    for strc_red, strc in zip(sim_red.structures, SIM_FULL.structures):
+        if strc.medium.nonlinear_spec is None:
+            assert strc == strc_red
     sim_red = SIM_FULL.subsection(region=region, remove_outside_custom_mediums=True)
 
     perm = td.SpatialDataArray(
@@ -2903,9 +2936,9 @@ def test_validate_low_num_cells_in_mode_objects():
         grid_spec=td.GridSpec(wavelength=1.0),
         sources=[mode_source],
         boundary_spec=td.BoundarySpec(
-            x=td.Boundary.pml(num_layers=5),
+            x=td.Boundary.pml(num_layers=6),
             y=td.Boundary.pec(),
-            z=td.Boundary.pml(num_layers=5),
+            z=td.Boundary.pml(num_layers=6),
         ),
     )
     sim2d._validate_num_cells_in_mode_objects()

@@ -1059,11 +1059,11 @@ class Geometry(Tidy3dBaseModel, ABC):
             return theta_local, phi_local
 
         x = np.cos(theta_local)
-        y = np.sin(theta_local) * np.sin(phi_local)
-        z = -np.sin(theta_local) * np.cos(phi_local)
+        y = np.sin(theta_local) * np.cos(phi_local)
+        z = np.sin(theta_local) * np.sin(phi_local)
 
         if axis == 1:
-            x, y, z = -z, x, -y
+            x, y, z = y, x, z
 
         theta = np.arccos(z)
         phi = np.arctan2(y, x)
@@ -2510,6 +2510,7 @@ class Box(SimplePlaneIntersection, Centered):
 
         # if not enough data, just use best guess using eps in medium and simulation
         needs_eps_approx = any(len(eps.coords[dim_normal]) <= num_cells_in for eps in eps_xyz)
+
         if derivative_info.eps_approx or needs_eps_approx:
             eps_xyz_inside = 3 * [derivative_info.eps_in]
             eps_xyz_outside = 3 * [derivative_info.eps_out]
@@ -2520,7 +2521,7 @@ class Box(SimplePlaneIntersection, Centered):
             if min_max_index == 0:
                 index_out, index_in = (0, num_cells_in - 1)
             else:
-                index_out, index_in = (-1, -num_cells_in - 1)
+                index_out, index_in = (-1, -num_cells_in)
             eps_xyz_inside = [eps.isel(**{dim_normal: index_in}) for eps in eps_xyz]
             eps_xyz_outside = [eps.isel(**{dim_normal: index_out}) for eps in eps_xyz]
 
@@ -2535,7 +2536,7 @@ class Box(SimplePlaneIntersection, Centered):
         def integrate_face(arr: xr.DataArray) -> complex:
             """Interpolate and integrate a scalar field data over the face using bounds."""
 
-            arr_at_face = arr.interp(**{dim_normal: coord_normal_face})
+            arr_at_face = arr.interp(**{dim_normal: coord_normal_face}, assume_sorted=True)
 
             integral_result = integrate_within_bounds(
                 arr=arr_at_face,
@@ -2929,12 +2930,10 @@ class ClipOperation(Geometry):
             For more details refer to
             `Shapely's Documentation <https://shapely.readthedocs.io/en/stable/project.html>`_.
         """
-        geom_a = Geometry.evaluate_inf_shape(
-            shapely.unary_union(self.geometry_a.intersections_tilted_plane(normal, origin, to_2D))
-        )
-        geom_b = Geometry.evaluate_inf_shape(
-            shapely.unary_union(self.geometry_b.intersections_tilted_plane(normal, origin, to_2D))
-        )
+        a = self.geometry_a.intersections_tilted_plane(normal, origin, to_2D)
+        b = self.geometry_b.intersections_tilted_plane(normal, origin, to_2D)
+        geom_a = shapely.unary_union([Geometry.evaluate_inf_shape(g) for g in a])
+        geom_b = shapely.unary_union([Geometry.evaluate_inf_shape(g) for g in b])
         return ClipOperation.to_polygon_list(self._shapely_operation(geom_a, geom_b))
 
     def intersections_plane(
@@ -2958,12 +2957,10 @@ class ClipOperation(Geometry):
             For more details refer to
             `Shapely's Documentaton <https://shapely.readthedocs.io/en/stable/project.html>`_.
         """
-        geom_a = Geometry.evaluate_inf_shape(
-            shapely.unary_union(self.geometry_a.intersections_plane(x, y, z))
-        )
-        geom_b = Geometry.evaluate_inf_shape(
-            shapely.unary_union(self.geometry_b.intersections_plane(x, y, z))
-        )
+        a = self.geometry_a.intersections_plane(x, y, z)
+        b = self.geometry_b.intersections_plane(x, y, z)
+        geom_a = shapely.unary_union([Geometry.evaluate_inf_shape(g) for g in a])
+        geom_b = shapely.unary_union([Geometry.evaluate_inf_shape(g) for g in b])
         return ClipOperation.to_polygon_list(self._shapely_operation(geom_a, geom_b))
 
     @cached_property
@@ -3286,7 +3283,7 @@ class GeometryGroup(Geometry):
             _, index, *geo_path = field_path
             geo = self.geometries[index]
             geo_info = derivative_info.updated_copy(
-                paths=[geo_path], bounds=geo.bounds, eps_approx=True
+                paths=[geo_path], bounds=geo.bounds, eps_approx=True, deep=False
             )
             vjp_dict_geo = geo.compute_derivatives(geo_info)
             grad_vjp_values = list(vjp_dict_geo.values())

@@ -203,6 +203,17 @@ def test_intersections_plane(component):
     assert len(component.intersections_plane(x=10000)) == 0
 
 
+def test_intersections_plane_inf():
+    a = (
+        td.Cylinder(radius=3.2, center=(0.45, 9, 0), length=td.inf)
+        + td.Box(center=(0, 0, 0), size=(0.9, 24, td.inf))
+        + td.Box(center=(0, 0, 0), size=(7.3, 18, td.inf))
+    )
+    b = td.Cylinder(radius=2.9, center=(-0.45, 9, 0), length=td.inf)
+    c = a - b
+    assert len(c.intersections_plane(y=0)) == 1
+
+
 def test_bounds_base():
     assert all(a == b for a, b in zip(Planar.bounds.fget(POLYSLAB), POLYSLAB.bounds))
 
@@ -252,6 +263,10 @@ def test_slanted_cylinder_infinite_length_validate():
             sidewall_angle=0.1,
             reference_plane="bottom",
         )
+
+
+def test_cylinder_to_polyslab():
+    ps = CYLINDER.to_polyslab(num_pts_circumference=10, dilation=0.02)
 
 
 def test_box_from_bounds():
@@ -522,6 +537,33 @@ def test_flattening():
         isinstance(g, td.Box) or (isinstance(g, td.ClipOperation) and g.operation == "intersection")
         for g in flat
     )
+
+    t0 = np.array([[2, 0, 0, 0], [3, 2, 0, 0], [1, 0, 2, 0], [0, 0, 0, 1.0]])
+    g0 = td.Sphere(radius=1)
+    t1 = np.array([[2, 0, 5, 0], [0, 1, 0, 0], [-1, 0, 1, 0], [0, 0, 0, 1.0]])
+    g1 = td.Box(size=(1, 2, 3))
+    flat = list(
+        flatten_groups(
+            td.Transformed(
+                transform=t0,
+                geometry=td.ClipOperation(
+                    operation="union",
+                    geometry_a=g0,
+                    geometry_b=td.Transformed(transform=t1, geometry=g1),
+                ),
+            ),
+            flatten_transformed=True,
+        )
+    )
+    assert len(flat) == 2
+
+    assert isinstance(flat[0], td.Transformed)
+    assert flat[0].geometry == g0
+    assert np.allclose(flat[0].transform, t0)
+
+    assert isinstance(flat[1], td.Transformed)
+    assert flat[1].geometry == g1
+    assert np.allclose(flat[1].transform, t0 @ t1)
 
 
 def test_geometry_traversal():
@@ -1019,3 +1061,9 @@ def test_snap_box_to_grid(snap_location, snap_behavior):
         assert math.isclose(new_box.bounds[1][1], xyz[3])
         # Check that the box boundary outside the grid was snapped to the smallest grid coordinate
         assert math.isclose(new_box.bounds[0][2], xyz[0])
+
+
+def test_triangulation_with_collinear_vertices():
+    xr = np.linspace(0, 1, 6)
+    a = np.array([[x, -0.5] for x in xr] + [[x, 0.5] for x in xr[::-1]])
+    assert len(td.components.geometry.triangulation.triangulate(a)) == 10

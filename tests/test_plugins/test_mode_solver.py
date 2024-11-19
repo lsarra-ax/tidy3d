@@ -1087,3 +1087,14 @@ def test_modes_eme_sim(mock_remote_api, local):
         _ = msweb.run(solver.to_fdtd_mode_solver())
 
     _ = solver.reduced_simulation_copy
+
+
+def test_mode_small_bend_radius_fail():
+    """Test that small bend radius fails."""
+
+    with pytest.raises(ValueError):
+        ms = ModeSolver(
+            plane=PLANE,
+            freqs=np.linspace(1e14, 2e14, 100),
+            mode_spec=td.ModeSpec(num_modes=1, bend_radius=1, bend_axis=0),
+        )

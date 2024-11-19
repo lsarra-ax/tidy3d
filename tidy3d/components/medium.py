@@ -168,6 +168,12 @@ class NonlinearModel(ABC, Tidy3dBaseModel):
         """Any additional validation that depends on the central frequencies of the sources."""
         pass
 
+    def _hardcode_medium_freqs(
+        self, medium: AbstractMedium, freqs: List[pd.PositiveFloat]
+    ) -> NonlinearSpec:
+        """Update the nonlinear model to hardcode information on medium and freqs."""
+        return self
+
     def _get_freq0(self, freq0, freqs: List[pd.PositiveFloat]) -> float:
         """Get a single value for freq0."""
 
@@ -435,8 +441,24 @@ class TwoPhotonAbsorption(NonlinearModel):
                     "gain medium are unstable, and are likely to diverge."
                 )
 
+    def _hardcode_medium_freqs(
+        self, medium: AbstractMedium, freqs: List[pd.PositiveFloat]
+    ) -> TwoPhotonAbsorption:
+        """Update the nonlinear model to hardcode information on medium and freqs."""
+        n0 = self._get_n0(n0=self.n0, medium=medium, freqs=freqs)
+        freq0 = self._get_freq0(freq0=self.freq0, freqs=freqs)
+        return self.updated_copy(n0=n0, freq0=freq0)
+
     def _validate_medium(self, medium: AbstractMedium):
         """Check that the model is compatible with the medium."""
+        log.warning(
+            "Found a medium with a 'TwoPhotonAbsorption' nonlinearity. "
+            "This uses a phenomenological model based on complex fields, "
+            "so care should be taken in interpreting the results. For more "
+            "information on the model, see the documentation at "
+            "'https://docs.flexcompute.com/projects/tidy3d/en/latest/api/_autosummary/tidy3d.TwoPhotonAbsorption.html' or the following reference: "
+            "'N. Suzuki, \"FDTD Analysis of Two-Photon Absorption and Free-Carrier Absorption in Si High-Index-Contrast Waveguides,\" J. Light. Technol. 25, 9 (2007).'."
+        )
         # if n0 is specified, we can go ahead and validate passivity
         if self.n0 is not None:
             self._validate_medium_freqs(medium, [])
@@ -476,7 +498,7 @@ class KerrNonlinearity(NonlinearModel):
     The fields in this equation are complex-valued, allowing a direct implementation of the Kerr
     nonlinearity. In contrast, the model :class:`.NonlinearSusceptibility` implements a
     chi3 nonlinear susceptibility using real-valued fields, giving rise to Kerr nonlinearity
-    as well as third-harmonic generation. The relationship between the parameters is given by
+    as well as third-harmonic generation and other effects. The relationship between the parameters is given by
     :math:`n_2 = \\frac{3}{4} \\frac{1}{\\varepsilon_0 c_0 n_0 \\operatorname{Re}(n_0)} \\chi_3`. The additional
     factor of :math:`\\frac{3}{4}` comes from the usage of complex-valued fields for the Kerr
     nonlinearity and real-valued fields for the nonlinear susceptibility.
@@ -524,8 +546,22 @@ class KerrNonlinearity(NonlinearModel):
                     "gain medium are unstable, and are likely to diverge."
                 )
 
+    def _hardcode_medium_freqs(
+        self, medium: AbstractMedium, freqs: List[pd.PositiveFloat]
+    ) -> KerrNonlinearity:
+        """Update the nonlinear model to hardcode information on medium and freqs."""
+        n0 = self._get_n0(n0=self.n0, medium=medium, freqs=freqs)
+        return self.updated_copy(n0=n0)
+
     def _validate_medium(self, medium: AbstractMedium):
         """Check that the model is compatible with the medium."""
+        log.warning(
+            "Found a medium with a 'KerrNonlinearity'. Usually, "
+            "'NonlinearSusceptibility' is preferred, as it captures "
+            "additional physical effects by acting on the underlying real fields. "
+            "The relation between the parameters is "
+            "'chi3 = (4/3) * eps_0 * c_0 * n0 * Re(n0) * n2'."
+        )
         # if n0 is specified, we can go ahead and validate passivity
         if self.n0 is not None:
             self._validate_medium_freqs(medium, [])
@@ -592,6 +628,16 @@ class NonlinearSpec(ABC, Tidy3dBaseModel):
                 f"{NONLINEAR_MAX_NUM_ITERS}, currently {val}."
             )
         return val
+
+    def _hardcode_medium_freqs(
+        self, medium: AbstractMedium, freqs: List[pd.PositiveFloat]
+    ) -> NonlinearSpec:
+        """Update the nonlinear spec to hardcode information on medium and freqs."""
+        new_models = []
+        for model in self.models:
+            new_model = model._hardcode_medium_freqs(medium=medium, freqs=freqs)
+            new_models.append(new_model)
+        return self.updated_copy(models=new_models)
 
 
 class AbstractMedium(ABC, Tidy3dBaseModel):
@@ -1455,7 +1501,9 @@ class AbstractCustomMedium(AbstractMedium, ABC):
 
         # TODO: probably this could be more robust. eg if the DataArray has weird edge cases
         E_der_dim = E_der_map[f"E{dim}"]
-        E_der_dim_interp = E_der_dim.interp(**coords_interp).fillna(0.0).sum(dims_sum).sum("f")
+        E_der_dim_interp = (
+            E_der_dim.interp(**coords_interp, assume_sorted=True).fillna(0.0).sum(dims_sum).sum("f")
+        )
         vjp_array = np.array(E_der_dim_interp.values).astype(complex)
         vjp_array = vjp_array.reshape(eps_data.shape)
 
@@ -1652,6 +1700,8 @@ class Medium(AbstractMedium):
             Imaginary part of refrative index.
         freq : float
             Frequency to evaluate permittivity at (Hz).
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Returns
         -------
@@ -1696,7 +1746,10 @@ class Medium(AbstractMedium):
         freqs = vjp_eps_complex.coords["f"].values
         values = vjp_eps_complex.values
 
-        eps_vjp, sigma_vjp = self.eps_complex_to_eps_sigma(eps_complex=values, freq=freqs)
+        # vjp of eps_complex_to_eps_sigma
+        omegas = 2 * np.pi * freqs
+        eps_vjp = np.real(values)
+        sigma_vjp = -np.imag(values) / omegas / EPSILON_0
 
         eps_vjp = np.sum(eps_vjp)
         sigma_vjp = np.sum(sigma_vjp)
@@ -2423,6 +2476,8 @@ class CustomMedium(AbstractCustomMedium):
         interp_method : :class:`.InterpMethod`, optional
             Interpolation method to obtain permittivity values that are not supplied
             at the Yee grids.
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Note
         ----
@@ -2644,7 +2699,9 @@ class CustomMedium(AbstractCustomMedium):
 
         # TODO: probably this could be more robust. eg if the DataArray has weird edge cases
         E_der_dim = E_der_map[f"E{dim}"]
-        E_der_dim_interp = E_der_dim.interp(**coords_interp).fillna(0.0).sum(dims_sum).real
+        E_der_dim_interp = (
+            E_der_dim.interp(**coords_interp, assume_sorted=True).fillna(0.0).sum(dims_sum).real
+        )
         E_der_dim_interp = E_der_dim_interp.sum("f")
 
         vjp_array = np.array(E_der_dim_interp.values, dtype=float)
@@ -4181,6 +4238,8 @@ class Lorentz(DispersiveMedium):
             Imaginary part of refrative index.
         freq : float
             Frequency to evaluate permittivity at (Hz).
+        kwargs: dict
+            Keyword arguments passed to the medium construction.
 
         Returns
         -------
@@ -4219,6 +4278,7 @@ class Lorentz(DispersiveMedium):
             coeffs=[
                 (eps_i, fp, delta_p),
             ],
+            **kwargs,
         )
 
 
@@ -5475,6 +5535,18 @@ class FullyAnisotropicMedium(AbstractMedium):
         :class:`FullyAnisotropicMedium`
             Resulting fully anisotropic medium.
         """
+
+        if any(comp.nonlinear_spec is not None for comp in [xx, yy, zz]):
+            raise ValidationError(
+                "Nonlinearities are not currently supported for the components "
+                "of a fully anisotropic medium."
+            )
+
+        if any(comp.modulation_spec is not None for comp in [xx, yy, zz]):
+            raise ValidationError(
+                "Modulation is not currently supported for the components "
+                "of a fully anisotropic medium."
+            )
 
         permittivity_diag = np.diag([comp.permittivity for comp in [xx, yy, zz]]).tolist()
         conductivity_diag = np.diag([comp.conductivity for comp in [xx, yy, zz]]).tolist()
@@ -6777,6 +6849,8 @@ def medium_from_nk(n: float, k: float, freq: float, **kwargs) -> Union[Medium, L
         Imaginary part of refrative index.
     freq : float
         Frequency to evaluate permittivity at (Hz).
+    kwargs: dict
+        Keyword arguments passed to the medium construction.
 
     Returns
     -------

@@ -15,6 +15,7 @@ API |:computer:|
     sources
     monitors
     mode
+    field_projector
     lumped_elements
     discretization
     subpixel_averaging
@@ -38,6 +39,7 @@ API |:computer:|
 .. include:: /api/sources.rst
 .. include:: /api/monitors.rst
 .. include:: /api/mode.rst
+.. include:: /api/field_projector.rst
 .. include:: /api/lumped_elements.rst
 .. include:: /api/discretization.rst
 .. include:: /api/subpixel_averaging.rst

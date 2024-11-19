@@ -537,6 +537,38 @@ def test_fully_anisotropic_media():
     assert all(np.isin(np.round(perm_d), np.round(np.diag(perm_diag))))
     assert all(np.isin(np.round(cond_d), np.round(np.diag(cond_diag))))
 
+    with pytest.raises(ValidationError):
+        _ = td.FullyAnisotropicMedium.from_diagonal(
+            xx=td.Medium(
+                permittivity=2,
+                nonlinear_spec=td.NonlinearSpec(
+                    models=[
+                        td.NonlinearSusceptibility(chi3=2),
+                        td.TwoPhotonAbsorption(beta=1.3),
+                        td.KerrNonlinearity(n2=1.3),
+                    ]
+                ),
+            ),
+            yy=td.Medium(permittivity=4),
+            zz=td.Medium(permittivity=1),
+            rotation=td.RotationAroundAxis(axis=2, angle=np.pi / 4),
+        )
+
+    with pytest.raises(ValidationError):
+        _ = td.FullyAnisotropicMedium.from_diagonal(
+            xx=td.Medium(permittivity=2),
+            yy=td.Medium(
+                permittivity=4,
+                modulation_spec=td.ModulationSpec(
+                    permittivity=td.SpaceTimeModulation(
+                        time_modulation=td.ContinuousWaveTimeModulation(freq0=1e12, amplitude=0.02)
+                    )
+                ),
+            ),
+            zz=td.Medium(permittivity=1),
+            rotation=td.RotationAroundAxis(axis=2, angle=np.pi / 4),
+        )
+
 
 def test_nonlinear_medium(log_capture):
     med = td.Medium(
@@ -551,15 +583,15 @@ def test_nonlinear_medium(log_capture):
     )
 
     # complex parameters
-    med = td.Medium(
-        nonlinear_spec=td.NonlinearSpec(
-            models=[
-                td.KerrNonlinearity(n2=-1 + 1j, n0=1),
-            ],
-            num_iters=20,
+    with AssertLogLevel(log_capture, "WARNING", contains_str="preferred"):
+        med = td.Medium(
+            nonlinear_spec=td.NonlinearSpec(
+                models=[
+                    td.KerrNonlinearity(n2=-1 + 1j, n0=1),
+                ],
+                num_iters=20,
+            )
         )
-    )
-    assert_log_level(log_capture, None)
 
     # warn about deprecated api
     med = td.Medium(nonlinear_spec=td.NonlinearSusceptibility(chi3=1.5))
@@ -610,10 +642,11 @@ def test_nonlinear_medium(log_capture):
     with pytest.raises(ValidationError):
         med = td.Medium(nonlinear_spec=td.NonlinearSpec(models=[td.KerrNonlinearity(n2=-1j, n0=1)]))
 
-    med = td.Medium(
-        nonlinear_spec=td.NonlinearSpec(models=[td.TwoPhotonAbsorption(beta=-1, n0=1)]),
-        allow_gain=True,
-    )
+    with AssertLogLevel(log_capture, "WARNING", contains_str="phenomenological"):
+        med = td.Medium(
+            nonlinear_spec=td.NonlinearSpec(models=[td.TwoPhotonAbsorption(beta=-1, n0=1)]),
+            allow_gain=True,
+        )
 
     # automatic detection of n0 and freq0
     n0 = 2
@@ -636,6 +669,15 @@ def test_nonlinear_medium(log_capture):
     )
     assert n0 == nonlinear_spec.models[0]._get_n0(n0=None, medium=medium, freqs=[freq0])
     assert freq0 == nonlinear_spec.models[0]._get_freq0(freq0=None, freqs=[freq0])
+
+    # subsection with nonlinear materials needs to hardcode source info
+    sim2 = sim.updated_copy(center=(-4, -4, -4), path="sources/0")
+    sim2 = sim2.updated_copy(
+        models=[td.TwoPhotonAbsorption(beta=1)], path="structures/0/medium/nonlinear_spec"
+    )
+    sim2 = sim2.subsection(region=td.Box(center=(0, 0, 0), size=(1, 1, 0)))
+    assert sim2.structures[0].medium.nonlinear_spec.models[0].n0 == n0
+    assert sim2.structures[0].medium.nonlinear_spec.models[0].freq0 == freq0
 
     # can't detect n0 with different source freqs
     source_time2 = source_time.updated_copy(freq0=2 * freq0)

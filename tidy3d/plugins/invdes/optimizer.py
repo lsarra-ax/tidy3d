@@ -10,6 +10,7 @@ import numpy as np
 import pydantic.v1 as pd
 
 import tidy3d as td
+from tidy3d.components.types import TYPE_TAG_STR
 
 from .base import InvdesBaseModel
 from .design import InverseDesignType
@@ -23,12 +24,19 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
         ...,
         title="Inverse Design Specification",
         description="Specification describing the inverse design problem we wish to optimize.",
+        discriminator=TYPE_TAG_STR,
     )
 
-    learning_rate: pd.NonNegativeFloat = pd.Field(
+    learning_rate: pd.PositiveFloat = pd.Field(
         ...,
         title="Learning Rate",
         description="Step size for the gradient descent optimizer.",
+    )
+
+    maximize: bool = pd.Field(
+        True,
+        title="Direction of Optimization",
+        description="If ``True``, the optimizer will maximize the objective function. If ``False``, the optimizer will minimize the objective function.",
     )
 
     num_steps: pd.PositiveInt = pd.Field(
@@ -63,6 +71,10 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
     def initial_state(self, parameters: np.ndarray) -> dict:
         """The initial state of the optimizer."""
 
+    def validate_pre_upload(self) -> None:
+        """Validate the fully initialized optimizer is ok for upload to our servers."""
+        self.design.simulation.validate_pre_upload()
+
     def display_fn(self, result: InverseDesignResult, step_index: int) -> None:
         """Default display function while optimizing."""
         print(f"step ({step_index + 1}/{self.num_steps})")
@@ -71,43 +83,99 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
         print(f"\tpost_process_val = {result.post_process_val[-1]:.3e}")
         print(f"\tpenalty = {result.penalty[-1]:.3e}")
 
-    def _initialize_result(self, params0: anp.ndarray = None) -> InverseDesignResult:
-        """Create an initially empty ``InverseDesignResult`` from the starting parameters."""
+    def initialize_result(
+        self, params0: typing.Optional[anp.ndarray] = None
+    ) -> InverseDesignResult:
+        """
+        Create an initially empty `InverseDesignResult` from the starting parameters.
 
-        # initialize optimizer
-        if params0 is None:
-            params0 = self.design.design_region.params_half
-        params0 = anp.array(params0)
-
+        Returns
+        -------
+        InverseDesignResult
+            An instance of `InverseDesignResult` initialized with the starting parameters and state.
+        """
+        if params0 is not None:
+            td.log.warning(
+                "The 'params0' argument is deprecated and will be removed in the future. "
+                "Please use a 'DesignRegion.initialization_spec' in the design region "
+                "to specify initial parameters instead. For now, 'params0' will take precedence "
+                "over 'initialization_spec'."
+            )
+        else:
+            params0 = self.design.design_region.initial_parameters
         state = self.initial_state(params0)
 
         # initialize empty result
         return InverseDesignResult(design=self.design, opt_state=[state], params=[params0])
 
     def run(
-        self, post_process_fn: typing.Callable, params0: anp.ndarray = None
+        self,
+        post_process_fn: typing.Optional[typing.Callable] = None,
+        callback: typing.Optional[typing.Callable] = None,
+        params0: anp.ndarray = None,
     ) -> InverseDesignResult:
-        """Run this inverse design problem from an optional initial set of parameters."""
-        self.design.design_region._check_params(params0)
-        starting_result = self._initialize_result(params0)
-        return self.continue_run(result=starting_result, post_process_fn=post_process_fn)
+        """Run this inverse design problem from an optional initial set of parameters.
+
+        Parameters
+        ----------
+        post_process_fn : Optional[Callable] = None
+            Function to apply on the simulation data results to produce the final objective function
+            value. If not provided, then ``Optimizer.design.metric`` must be defined.
+        callback : Optional[Callable] = None
+            Callback function to apply at every iteration step for extra functionality. Does not
+            need to be differentiable. This takes the optimizer ``result`` as a positional argument
+            and the ``step_index`` and ``aux_data`` as optional arguments.
+        params0 : anp.ndarray = None
+            Deprecated. Initial set of parameters. Use ``TopologyDesignRegion.intialization_spec`` instead.
+        """
+        starting_result = self.initialize_result(params0)
+        return self.continue_run(
+            result=starting_result,
+            num_steps=self.num_steps,
+            post_process_fn=post_process_fn,
+            callback=callback,
+        )
 
     def continue_run(
-        self, result: InverseDesignResult, post_process_fn: typing.Callable
+        self,
+        result: InverseDesignResult,
+        num_steps: int = None,
+        post_process_fn: typing.Optional[typing.Callable] = None,
+        callback: typing.Optional[typing.Callable] = None,
     ) -> InverseDesignResult:
-        """Run optimizer for a series of steps with an initialized state."""
+        """Run optimizer for a series of steps with an initialized state.
+
+        Parameters
+        ----------
+        result : InverseDesignResult
+            Optimization result from previous run, or a starting optimization result data structure.
+        num_steps : int = None
+            Number of steps to continue the run for. If not provided, runs for the remainder of the
+            steps up to ``self.num_steps``.
+        post_process_fn : Optional[Callable] = None
+            Function to apply on the simulation data results to produce the final objective function
+            value. If not provided, then ``Optimizer.design.metric`` must be defined.
+        callback : Optional[Callable] = None
+            Callback function to apply at every iteration step for extra functionality. Does not
+            need to be differentiable. This takes the optimizer ``result`` as a positional argument
+            and the ``step_index`` and ``aux_data`` as optional arguments.
+        """
 
         # get the last state of the optimizer and the last parameters
         opt_state = result.get_last("opt_state")
         params = result.get_last("params")
         history = deepcopy(result.history)
+        done_steps = len(history["objective_fn_val"])
 
         # use autograd to take gradient the objective function
-        objective_fn = self.design.make_objective_fn(post_process_fn)
+        objective_fn = self.design.make_objective_fn(post_process_fn, maximize=self.maximize)
         val_and_grad_fn = ag.value_and_grad(objective_fn)
 
+        if num_steps is None:
+            num_steps = self.num_steps - done_steps
+
         # main optimization loop
-        for step_index in range(self.num_steps):
+        for step_index in range(done_steps, done_steps + num_steps):
             aux_data = {}
             val, grad = val_and_grad_fn(params, aux_data=aux_data)
 
@@ -116,9 +184,8 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
                     "All elements of the gradient are almost zero. This likely indicates "
                     "a problem with the optimization set up. This can occur if the symmetry of the "
                     "simulation and design region are preventing any data to be recorded in the "
-                    "'output_monitors'. In this case, we recommend creating the initial parameters "
-                    " as 'params0 = DesignRegion.params_random' and passing this to "
-                    "'Optimizer.run()' to break the symmetry in the design region. "
+                    "'output_monitors'. In this case, we recommend initializing with a "
+                    "'RandomInitializationSpec' to break the symmetry in the design region. "
                     "This zero gradient can also occur if the objective function return value does "
                     "not have a contribution from the input arguments. We recommend carefully "
                     "inspecting your objective function to ensure that the variables passed to the "
@@ -136,7 +203,7 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
             params = anp.clip(params, a_min=0.0, a_max=1.0)
 
             # save the history of scalar values
-            history["objective_fn_val"].append(val)
+            history["objective_fn_val"].append(aux_data["objective_fn_val"])
             history["penalty"].append(penalty)
             history["post_process_val"].append(post_process_val)
 
@@ -150,6 +217,8 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
             # display information
             result = InverseDesignResult(design=result.design, **history)
             self.display_fn(result, step_index=step_index)
+            if callback:
+                callback(result, step_index=step_index, aux_data=aux_data)
 
             # save current results to file
             if self.results_cache_fname:
@@ -158,16 +227,33 @@ class AbstractOptimizer(InvdesBaseModel, abc.ABC):
         return InverseDesignResult(design=result.design, **history)
 
     def continue_run_from_file(
-        self, fname: str, post_process_fn: typing.Callable
+        self,
+        fname: str,
+        num_steps: int = None,
+        post_process_fn: typing.Optional[typing.Callable] = None,
+        callback: typing.Optional[typing.Callable] = None,
     ) -> InverseDesignResult:
         """Continue the optimization run from a ``.pkl`` file with an ``InverseDesignResult``."""
         result = InverseDesignResult.from_file(fname)
-        return self.continue_run(result=result, post_process_fn=post_process_fn)
+        return self.continue_run(
+            result=result,
+            num_steps=num_steps,
+            post_process_fn=post_process_fn,
+            callback=callback,
+        )
 
-    def continue_run_from_history(self, post_process_fn: typing.Callable) -> InverseDesignResult:
+    def continue_run_from_history(
+        self,
+        num_steps: int = None,
+        post_process_fn: typing.Optional[typing.Callable] = None,
+        callback: typing.Optional[typing.Callable] = None,
+    ) -> InverseDesignResult:
         """Continue the optimization run from a ``.pkl`` file with an ``InverseDesignResult``."""
         return self.continue_run_from_file(
-            fname=self.results_cache_fname, post_process_fn=post_process_fn
+            fname=self.results_cache_fname,
+            num_steps=num_steps,
+            post_process_fn=post_process_fn,
+            callback=callback,
         )
 
 
@@ -176,17 +262,21 @@ class AdamOptimizer(AbstractOptimizer):
 
     beta1: float = pd.Field(
         0.9,
+        ge=0.0,
+        le=1.0,
         title="Beta 1",
         description="Beta 1 parameter in the Adam optimization method.",
     )
 
     beta2: float = pd.Field(
         0.999,
+        ge=0.0,
+        le=1.0,
         title="Beta 2",
         description="Beta 2 parameter in the Adam optimization method.",
     )
 
-    eps: float = pd.Field(
+    eps: pd.PositiveFloat = pd.Field(
         1e-8,
         title="Epsilon",
         description="Epsilon parameter in the Adam optimization method.",

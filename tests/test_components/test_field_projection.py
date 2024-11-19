@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import tidy3d as td
+from tidy3d.components.field_projection import FieldProjector
 from tidy3d.exceptions import DataError
 
 MEDIUM = td.Medium(permittivity=3)
@@ -386,6 +387,8 @@ def make_2d_proj_monitors(center, size, freqs, plane):
         Ns = 40
         xs = np.linspace(-far_size, far_size, Ns)
         ys = [0]
+        kx = np.linspace(-0.7, 0.7, Ns)
+        ky = [0]
         projection_axis = 0
     elif plane == "yz":
         thetas = np.linspace(0, np.pi, 1)
@@ -394,6 +397,8 @@ def make_2d_proj_monitors(center, size, freqs, plane):
         Ns = 40
         xs = [0]
         ys = np.linspace(-far_size, far_size, Ns)
+        kx = [0]
+        ky = np.linspace(-0.7, 0.7, Ns)
         projection_axis = 1
     elif plane == "xz":
         thetas = np.linspace(0, np.pi, 100)
@@ -402,6 +407,8 @@ def make_2d_proj_monitors(center, size, freqs, plane):
         Ns = 40
         xs = [0]
         ys = np.linspace(-far_size, far_size, Ns)
+        kx = [0]
+        ky = np.linspace(-0.7, 0.7, Ns)
         projection_axis = 0
     else:
         raise ValueError("Invalid plane. Use 'xy', 'yz', or 'xz'.")
@@ -429,7 +436,19 @@ def make_2d_proj_monitors(center, size, freqs, plane):
         far_field_approx=True,  # Fields are far enough for geometric far field approximations
     )
 
-    return (n2f_angle_monitor_2d, n2f_car_monitor_2d)
+    n2f_k_monitor_2d = td.FieldProjectionKSpaceMonitor(
+        center=center,
+        size=size,
+        freqs=freqs,
+        name="far_field_kspace",
+        ux=list(kx),
+        uy=list(ky),
+        proj_axis=projection_axis,
+        proj_distance=R_FAR,
+        far_field_approx=True,  # Fields are far enough for geometric far field approximations
+    )
+
+    return (n2f_angle_monitor_2d, n2f_car_monitor_2d, n2f_k_monitor_2d)
 
 
 def make_2d_proj(plane):
@@ -528,10 +547,12 @@ def make_2d_proj(plane):
     (
         n2f_angle_monitor_2d,
         n2f_cart_monitor_2d,
+        n2f_kspace_monitor_2d,
     ) = make_2d_proj_monitors(center, monitor_size, [f0], plane)
 
     far_fields_angular_2d = proj.project_fields(n2f_angle_monitor_2d)
     far_fields_cartesian_2d = proj.project_fields(n2f_cart_monitor_2d)
+    far_fields_kspace_2d = proj.project_fields(n2f_kspace_monitor_2d)
 
     # compute far field quantities
     far_fields_angular_2d.r
@@ -556,6 +577,17 @@ def make_2d_proj(plane):
         val.sel(f=f0)
     far_fields_cartesian_2d.renormalize_fields(proj_distance=5e6)
 
+    far_fields_kspace_2d.ux
+    far_fields_kspace_2d.uy
+    far_fields_kspace_2d.r
+    far_fields_kspace_2d.fields_spherical
+    far_fields_kspace_2d.fields_cartesian
+    far_fields_kspace_2d.radar_cross_section
+    far_fields_kspace_2d.power
+    for val in far_fields_kspace_2d.field_components.values():
+        val.sel(f=f0)
+    far_fields_kspace_2d.renormalize_fields(proj_distance=5e6)
+
 
 def test_2d_proj_clientside():
     # Run simulations and tests for all three planes
@@ -563,3 +595,25 @@ def test_2d_proj_clientside():
 
     for plane in planes:
         make_2d_proj(plane)
+
+
+@pytest.mark.parametrize(
+    "array, pts, axes, expected",
+    [
+        # 1D array, integrate over axis 0
+        (np.array([1, 2, 3]), np.array([0, 1, 2]), 0, 4.0),
+        # 2D array, integrate over axis 0
+        (np.array([[1, 2, 3], [4, 5, 6]]), np.array([0, 1]), 0, np.array([2.5, 3.5, 4.5])),
+        # 2D array, integrate over axis 1
+        (np.array([[1, 2], [3, 4], [5, 6]]), np.array([0, 1]), 1, np.array([1.5, 3.5, 5.5])),
+        # 3D array, integrate over axes 0 and 1
+        (np.ones((2, 2, 2)), [np.array([0, 1]), np.array([0, 1])], [0, 1], np.array([1.0, 1.0])),
+        # one element along integration axis but two points in pts
+        (np.array([[1, 1], [2, 2], [3, 3]]), np.array([0, 1]), 1, np.array([1.0, 2.0, 3.0])),
+        # 2D array of shape (1, 3), integrate over both axes
+        (np.array([[1, 2, 3]]), [np.array([0]), np.array([0, 1, 2])], [0, 1], 4.0),
+    ],
+)
+def test_trapezoid(array, pts, axes, expected):
+    result = FieldProjector.trapezoid(array, pts, axes)
+    assert np.allclose(result, expected)

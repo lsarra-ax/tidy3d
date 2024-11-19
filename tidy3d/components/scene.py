@@ -133,7 +133,7 @@ class Scene(Tidy3dBaseModel):
             return val
 
         for i, structure in enumerate(val):
-            for geometry in flatten_groups(structure.geometry):
+            for geometry in flatten_groups(structure.geometry, flatten_transformed=True):
                 count = sum(
                     1
                     for g in traverse_geometries(geometry)
@@ -257,6 +257,7 @@ class Scene(Tidy3dBaseModel):
         List[:class:`.AbstractMedium`]
             Set of distinct mediums that intersect with the given planar object.
         """
+        structures = [s.to_static() for s in structures]
         if test_object.size.count(0.0) == 1:
             # get all merged structures on the test_object, which is already planar
             structures_merged = Scene._filter_structures_plane_medium(structures, test_object)
@@ -417,7 +418,7 @@ class Scene(Tidy3dBaseModel):
         """
 
         medium_shapes = self._get_structures_2dbox(
-            structures=self.structures, x=x, y=y, z=z, hlim=hlim, vlim=vlim
+            structures=self.to_static().structures, x=x, y=y, z=z, hlim=hlim, vlim=vlim
         )
         medium_map = self.medium_map
         for medium, shape in medium_shapes:
@@ -654,7 +655,7 @@ class Scene(Tidy3dBaseModel):
                 if _shape.is_empty or not shape.intersects(_shape):
                     continue
 
-                diff_shape = _shape - shape
+                diff_shape = (_shape - shape).buffer(0)
 
                 # different prop, remove intersection from background shape
                 if prop != _prop and len(diff_shape.bounds) > 0:

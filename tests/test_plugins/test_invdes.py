@@ -2,9 +2,16 @@
 
 import autograd.numpy as anp
 import numpy as np
+import numpy.testing as npt
 import pytest
 import tidy3d as td
 import tidy3d.plugins.invdes as tdi
+from tidy3d.plugins.expressions import ModeAmp, ModePower
+from tidy3d.plugins.invdes.initialization import (
+    CustomInitializationSpec,
+    RandomInitializationSpec,
+    UniformInitializationSpec,
+)
 
 # use single threading pipeline
 from ..test_components.test_autograd import use_emulated_run  # noqa: F401
@@ -86,6 +93,18 @@ def test_region_params():
     _ = design_region.params_random
     _ = design_region.params_ones
     _ = design_region.params_zeros
+
+
+def test_region_uniform():
+    """Test parameter shape for uniform dimensions"""
+    region = make_design_region()
+    shape = region.params_shape
+
+    test_region = region.updated_copy(uniform=(1, 1, 1))
+    assert test_region.params_shape == (1, 1, 1)
+
+    test_region = region.updated_copy(uniform=(1, 0, 1))
+    assert test_region.params_shape == (1, *shape[1:])
 
 
 def test_region_penalties():
@@ -278,18 +297,15 @@ def make_result(use_emulated_run):  # noqa: F811
     """Test running the optimization defined in the ``InverseDesign`` object."""
 
     optimizer = make_optimizer()
+    optimizer.validate_pre_upload()
 
-    PARAMS_0 = np.random.random(optimizer.design.design_region.params_shape)
-
-    return optimizer.run(params0=PARAMS_0, post_process_fn=post_process_fn)
+    return optimizer.run(post_process_fn=post_process_fn)
 
 
 def test_default_params(use_emulated_run):  # noqa: F811
     """Test default paramns running the optimization defined in the ``InverseDesign`` object."""
 
     optimizer = make_optimizer()
-
-    _ = np.random.random(optimizer.design.design_region.params_shape)
 
     optimizer.run(post_process_fn=post_process_fn)
 
@@ -312,9 +328,7 @@ def make_result_multi(use_emulated_run):  # noqa: F811
 
     optimizer = optimizer.updated_copy(design=design)
 
-    PARAMS_0 = np.random.random(optimizer.design.design_region.params_shape)
-
-    return optimizer.run(params0=PARAMS_0, post_process_fn=post_process_fn_multi)
+    return optimizer.run(post_process_fn=post_process_fn_multi)
 
 
 def test_result_store_full_results_is_false(use_emulated_run):  # noqa: F811
@@ -323,9 +337,7 @@ def test_result_store_full_results_is_false(use_emulated_run):  # noqa: F811
     optimizer = make_optimizer()
     optimizer = optimizer.updated_copy(store_full_results=False, num_steps=3)
 
-    PARAMS_0 = np.random.random(optimizer.design.design_region.params_shape)
-
-    result = optimizer.run(params0=PARAMS_0, post_process_fn=post_process_fn)
+    result = optimizer.run(post_process_fn=post_process_fn)
 
     # these store at the very beginning and at the end of every iteration
     # but when ``store_full_results == False``, they only store the last one
@@ -344,12 +356,15 @@ def test_continue_run_fns(use_emulated_run):  # noqa: F811
     """Test continuing an already run inverse design from result."""
     result_orig = make_result(use_emulated_run)
     optimizer = make_optimizer()
-    result_full = optimizer.continue_run(result=result_orig, post_process_fn=post_process_fn)
+    num_steps_continue = 2
+    result_full = optimizer.continue_run(
+        result=result_orig, num_steps=num_steps_continue, post_process_fn=post_process_fn
+    )
 
     num_steps_orig = len(result_orig.history["params"])
     num_steps_full = len(result_full.history["params"])
     assert (
-        num_steps_full == num_steps_orig + optimizer.num_steps
+        num_steps_full == num_steps_orig + num_steps_continue
     ), "wrong number of elements in the combined run history."
 
 
@@ -358,15 +373,23 @@ def test_continue_run_from_file(use_emulated_run):  # noqa: F811
     result_orig = make_result(use_emulated_run)
     optimizer_orig = make_optimizer()
     optimizer = optimizer_orig.updated_copy(num_steps=optimizer_orig.num_steps + 1)
-    result_full = optimizer.continue_run_from_file(HISTORY_FNAME, post_process_fn=post_process_fn)
+    num_steps_continue = 2
+    result_full = optimizer.continue_run_from_file(
+        HISTORY_FNAME, num_steps=2, post_process_fn=post_process_fn
+    )
     num_steps_orig = len(result_orig.history["params"])
-    num_steps_full = len(result_full.history["params"])
+    num_steps_new = len(result_full.history["params"])
     assert (
-        num_steps_full == num_steps_orig + optimizer.num_steps
+        num_steps_new == num_steps_orig + num_steps_continue
     ), "wrong number of elements in the combined run history."
 
     # test the convenience function to load it from file
-    result_full = optimizer.continue_run_from_history(post_process_fn=post_process_fn)
+    result_full = optimizer.continue_run_from_history(num_steps=2, post_process_fn=post_process_fn)
+    num_steps_orig = num_steps_new
+    num_steps_new = len(result_full.history["params"])
+    assert (
+        num_steps_new == num_steps_orig + num_steps_continue
+    ), "wrong number of elements in the combined run history."
 
 
 def test_result(
@@ -383,7 +406,7 @@ def test_result(
 
     val_last1 = result.last["params"]
     val_last2 = result.get_last("params")
-    assert np.allclose(val_last1, val_last2)
+    npt.assert_allclose(val_last1, val_last2)
 
     result.plot_optimization()
     _ = result.sim_data_last(task_name="last")
@@ -478,3 +501,127 @@ def test_pixel_size_warn_validator(log_capture):
 
     with AssertLogLevel(log_capture, "WARNING", contains_str="pixel_size"):
         invdes_multi = invdes_multi.updated_copy(design_region=region_too_coarse)
+
+
+def test_invdes_with_metric_objective(use_emulated_run, use_emulated_to_sim_data):  # noqa: F811
+    """Test using a metric as an objective function in InverseDesign."""
+
+    # Create a metric as the objective function
+    metric = 2 * ModePower(monitor_name=MNT_NAME2, f=[FREQ0]) ** 2
+
+    invdes = tdi.InverseDesign(
+        simulation=simulation,
+        design_region=make_design_region(),
+        task_name="test_metric",
+        metric=metric,
+    )
+
+    optimizer = tdi.AdamOptimizer(
+        design=invdes,
+        learning_rate=0.2,
+        num_steps=1,
+    )
+
+    optimizer.run()
+
+
+@pytest.mark.parametrize(
+    "spec_class, spec_kwargs, expected_shape",
+    [
+        (RandomInitializationSpec, {"min_value": 0.0, "max_value": 1.0}, (3, 3)),
+        (UniformInitializationSpec, {"value": 0.5}, (2, 2)),
+        (CustomInitializationSpec, {"params": np.zeros((3, 3, 3))}, (3, 3, 3)),
+    ],
+)
+def test_parameter_spec(spec_class, spec_kwargs, expected_shape):
+    """Test the creation of parameter arrays from different InitializationSpec classes."""
+    spec = spec_class(**spec_kwargs)
+    params = spec.create_parameters(expected_shape)
+    assert params.shape == expected_shape
+
+
+def test_parameter_spec_with_inverse_design(use_emulated_run, use_emulated_to_sim_data):  # noqa: F811
+    """Test InitializationSpec with InverseDesign class."""
+
+    metric = 2 * ModePower(monitor_name=MNT_NAME2, f=[FREQ0]) ** 2
+
+    initialization_spec = RandomInitializationSpec()
+    design_region = make_design_region()
+    design_region = design_region.updated_copy(initialization_spec=initialization_spec)
+
+    invdes = tdi.InverseDesign(
+        simulation=simulation,
+        design_region=design_region,
+        task_name="test_metric",
+        metric=metric,
+    )
+
+    optimizer = tdi.AdamOptimizer(
+        design=invdes,
+        learning_rate=0.2,
+        num_steps=1,
+    )
+
+    optimizer.run()
+
+
+def test_initial_simulation():
+    """Test the initial_simulation property for InverseDesign."""
+    invdes = make_invdes()
+    initial_sim = invdes.initial_simulation
+    assert isinstance(initial_sim, td.Simulation)
+    assert initial_sim.structures[-1] == invdes.design_region.to_structure(
+        invdes.design_region.initial_parameters
+    )
+
+
+def test_initial_simulation_multi():
+    """Test the initial_simulation property for InverseDesignMulti."""
+    invdes_multi = make_invdes_multi()
+    initial_sims = invdes_multi.initial_simulation
+    assert isinstance(initial_sims, dict)
+    for sim in initial_sims.values():
+        assert isinstance(sim, td.Simulation)
+        assert sim.structures[-1] == invdes_multi.design_region.to_structure(
+            invdes_multi.design_region.initial_parameters
+        )
+
+
+def test_metric_scalar_freq():
+    invdes = make_invdes()
+    metric = ModePower(monitor_name=MNT_NAME2, mode_index=0, f=FREQ0)
+    monitor = mnt2.updated_copy(freqs=[FREQ0, FREQ0 / 2])
+    invdes = invdes.updated_copy(
+        metric=metric,
+        simulation=simulation.updated_copy(monitors=[monitor]),
+    )
+
+
+def test_validate_invdes_metric():
+    """Test the _validate_metric_monitor_name validator."""
+    invdes = make_invdes()
+    metric = ModePower(monitor_name="invalid_monitor", f=[FREQ0])
+    with pytest.raises(ValueError, match="monitors"):
+        invdes.updated_copy(metric=metric)
+
+    metric = ModePower(monitor_name=MNT_NAME2, mode_index=10, f=[FREQ0])
+    with pytest.raises(ValueError, match="mode index"):
+        invdes.updated_copy(metric=metric)
+
+    metric = ModePower(monitor_name=MNT_NAME2, mode_index=0, f=[FREQ0 / 2])
+    with pytest.raises(ValueError, match="frequencies"):
+        invdes.updated_copy(metric=metric)
+
+    metric = ModePower(monitor_name=MNT_NAME2, mode_index=0)
+    monitor = mnt2.updated_copy(freqs=[FREQ0, FREQ0 / 2])
+    invdes = invdes.updated_copy(simulation=simulation.updated_copy(monitors=[monitor]))
+    with pytest.raises(ValueError, match="single frequency"):
+        invdes.updated_copy(metric=metric)
+
+    metric = ModeAmp(monitor_name=MNT_NAME2, mode_index=0) + ModePower(
+        monitor_name=MNT_NAME2, mode_index=0
+    )
+    monitor = mnt2.updated_copy(freqs=[FREQ0])
+    invdes = invdes.updated_copy(simulation=simulation.updated_copy(monitors=[monitor]))
+    with pytest.raises(ValueError, match="must return a real"):
+        invdes.updated_copy(metric=metric)

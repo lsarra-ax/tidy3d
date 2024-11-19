@@ -1,14 +1,19 @@
 # container for everything defining the inverse design
 
+from __future__ import annotations
+
 import abc
 import typing
 
 import autograd.numpy as anp
+import numpy as np
 import pydantic.v1 as pd
 
 import tidy3d as td
-import tidy3d.web as web
 from tidy3d.components.autograd import get_static
+from tidy3d.exceptions import ValidationError
+from tidy3d.plugins.expressions.metrics import Metric, generate_validation_data
+from tidy3d.plugins.expressions.types import ExpressionType
 
 from .base import InvdesBaseModel
 from .region import DesignRegionType
@@ -38,30 +43,76 @@ class AbstractInverseDesign(InvdesBaseModel, abc.ABC):
         description="If ``True``, will print the regular output from ``web`` functions.",
     )
 
+    metric: typing.Optional[ExpressionType] = pd.Field(
+        None,
+        title="Objective Metric",
+        description="Serializable expression defining the objective function.",
+    )
+
     def make_objective_fn(
-        self, post_process_fn: typing.Callable
+        self, post_process_fn: typing.Optional[typing.Callable] = None, maximize: bool = True
     ) -> typing.Callable[[anp.ndarray], tuple[float, dict]]:
-        """construct the objective function for this ``InverseDesignMulti`` object."""
+        """Construct the objective function for this InverseDesign object."""
+
+        if (post_process_fn is None) and (self.metric is None):
+            raise ValueError("Either 'post_process_fn' or 'metric' must be provided.")
+
+        if (post_process_fn is not None) and (self.metric is not None):
+            raise ValueError("Provide only one of 'post_process_fn' or 'metric', not both.")
+
+        direction_multiplier = 1 if maximize else -1
 
         def objective_fn(params: anp.ndarray, aux_data: dict = None) -> float:
             """Full objective function."""
-
             data = self.to_simulation_data(params=params)
 
-            # construct objective function values
-            post_process_val = post_process_fn(data)
+            if self.metric is None:
+                post_process_val = post_process_fn(data)
+            elif isinstance(data, td.SimulationData):
+                post_process_val = self.metric.evaluate(data)
+            elif getattr(data, "type", None) == "BatchData":
+                raise NotImplementedError("Metrics currently do not support 'BatchData'")
+            else:
+                raise ValueError(f"Invalid data type: {type(data)}")
 
             penalty_value = self.design_region.penalty_value(params)
-            objective_fn_val = post_process_val - penalty_value
+            objective_fn_val = direction_multiplier * post_process_val - penalty_value
 
-            # store things in ``aux_data`` passed by reference
+            # Store auxiliary data if provided
             if aux_data is not None:
                 aux_data["penalty"] = get_static(penalty_value)
                 aux_data["post_process_val"] = get_static(post_process_val)
+                aux_data["objective_fn_val"] = get_static(objective_fn_val) * direction_multiplier
+                if isinstance(data, td.SimulationData):
+                    aux_data["sim_data"] = data.to_static()
+                else:
+                    aux_data["sim_data"] = {k: v.to_static() for k, v in data.items()}
+                aux_data["params"] = params
 
             return objective_fn_val
 
         return objective_fn
+
+    @property
+    def initial_simulation(self) -> td.Simulation:
+        """Return a simulation with the initial design region parameters."""
+        initial_params = self.design_region.initial_parameters
+        return self.to_simulation(initial_params)
+
+    def run(self, simulation, **kwargs) -> td.SimulationData:
+        """Run a single tidy3d simulation."""
+        from tidy3d.web import run
+
+        kwargs.setdefault("verbose", self.verbose)
+        kwargs.setdefault("task_name", self.task_name)
+        return run(simulation, **kwargs)
+
+    def run_async(self, simulations, **kwargs) -> web.BatchData:  # noqa: F821
+        """Run a batch of tidy3d simulations."""
+        from tidy3d.web import run_async
+
+        kwargs.setdefault("verbose", self.verbose)
+        return run_async(simulations, **kwargs)
 
 
 class InverseDesign(AbstractInverseDesign):
@@ -84,6 +135,81 @@ class InverseDesign(AbstractInverseDesign):
     )
 
     _check_sim_pixel_size = check_pixel_size("simulation")
+
+    @pd.root_validator(pre=False)
+    def _validate_model(cls, values: dict) -> dict:
+        cls._validate_metric(values)
+        return values
+
+    @staticmethod
+    def _validate_metric(values: dict) -> dict:
+        metric_expr = values.get("metric")
+        if not metric_expr:
+            return values
+        simulation = values.get("simulation")
+        for metric in metric_expr.filter(Metric):
+            InverseDesign._validate_metric_monitor_name(metric, simulation)
+            InverseDesign._validate_metric_mode_index(metric, simulation)
+            InverseDesign._validate_metric_f(metric, simulation)
+        InverseDesign._validate_metric_data(metric_expr, simulation)
+        return values
+
+    @staticmethod
+    def _validate_metric_monitor_name(metric: Metric, simulation: td.Simulation) -> None:
+        """Validate that the monitor name of the metric exists in the simulation."""
+        monitor = next((m for m in simulation.monitors if m.name == metric.monitor_name), None)
+        if monitor is None:
+            raise ValidationError(
+                f"Monitor named '{metric.monitor_name}' associated with the metric not found in the simulation monitors."
+            )
+
+    @staticmethod
+    def _validate_metric_mode_index(metric: Metric, simulation: td.Simulation) -> None:
+        """Validate that the mode index of the metric is within the bounds of the monitor's ``ModeSpec.num_modes``."""
+        monitor = next((m for m in simulation.monitors if m.name == metric.monitor_name), None)
+        if metric.mode_index >= monitor.mode_spec.num_modes:
+            raise ValidationError(
+                f"Mode index '{metric.mode_index}' for metric associated with monitor "
+                f"'{metric.monitor_name}' is out of bounds. "
+                f"Maximum allowed mode index is '{monitor.mode_spec.num_modes - 1}'."
+            )
+
+    @staticmethod
+    def _validate_metric_f(metric: Metric, simulation: td.Simulation) -> None:
+        """Validate that the frequencies of the metric are present in the monitor."""
+        monitor = next((m for m in simulation.monitors if m.name == metric.monitor_name), None)
+        if metric.f is not None:
+            metric_f_list = [metric.f] if isinstance(metric.f, float) else metric.f
+            if len(metric_f_list) != 1:
+                raise ValidationError("Only a single frequency is supported for the metric.")
+            for freq in metric_f_list:
+                if not any(np.isclose(freq, monitor.freqs, atol=1.0)):
+                    raise ValidationError(
+                        f"Frequency '{freq}' for metric associated with monitor "
+                        f"'{metric.monitor_name}' not found in monitor frequencies."
+                    )
+        else:
+            if len(monitor.freqs) != 1:
+                raise ValidationError(
+                    f"Monitor '{metric.monitor_name}' must contain only a single frequency when metric.f is None."
+                )
+
+    @staticmethod
+    def _validate_metric_data(expr: ExpressionType, simulation: td.Simulation) -> None:
+        """Validate that expression can be evaluated and returns a real scalar."""
+        data = generate_validation_data(expr)
+        try:
+            result = expr(data)
+        except Exception as e:
+            raise ValidationError(f"Failed to evaluate the metric expression: {str(e)}") from e
+        if len(np.ravel(result)) > 1:
+            raise ValidationError(
+                f"The expression must return a scalar value or an array of length 1 (got {result})."
+            )
+        if not np.all(np.isreal(result)):
+            raise ValidationError(
+                f"The expression must return a real (not complex) value (got {result})."
+            )
 
     def is_output_monitor(self, monitor: td.Monitor) -> bool:
         """Whether a monitor is added to the ``JaxSimulation`` as an ``output_monitor``."""
@@ -128,10 +254,7 @@ class InverseDesign(AbstractInverseDesign):
     def to_simulation_data(self, params: anp.ndarray, **kwargs) -> td.SimulationData:
         """Convert the ``InverseDesign`` to a ``td.Simulation`` and run it."""
         simulation = self.to_simulation(params=params)
-        kwargs.setdefault("task_name", self.task_name)
-        return web.run(simulation, verbose=self.verbose, **kwargs)
-        # sim_data = job.run()
-        # return sim_data
+        return self.run(simulation, **kwargs)
 
 
 class InverseDesignMulti(AbstractInverseDesign):
@@ -201,11 +324,10 @@ class InverseDesignMulti(AbstractInverseDesign):
         simulation_list = [design.to_simulation(params) for design in self.designs]
         return dict(zip(self.task_names, simulation_list))
 
-    def to_simulation_data(self, params: anp.ndarray, **kwargs) -> web.BatchData:
+    def to_simulation_data(self, params: anp.ndarray, **kwargs) -> web.BatchData:  # noqa: F821
         """Convert the ``InverseDesignMulti`` to a set of ``td.Simulation``s and run async."""
         simulations = self.to_simulation(params)
-        kwargs.setdefault("verbose", self.verbose)
-        return web.run_async(simulations, **kwargs)
+        return self.run_async(simulations, **kwargs)
 
 
 InverseDesignType = typing.Union[InverseDesign, InverseDesignMulti]
