@@ -223,17 +223,22 @@ class DerivativeInfo(Tidy3dBaseModel):
         xs, ys, zs = spatial_coords.T
         edge_index_dim = "edge_index"
 
+        sum_dims = []
         interp_kwargs = {}
         for dim, locations_dim in zip("xyz", (xs, ys, zs)):
             # only include dims where the data has more than 1 coord, to avoid warnings and errors
-            if True or any(np.array(fld.coords[dim]).size > 1 for fld in fld_dataset.values()):
+            if any(np.array(fld.coords[dim]).size == 1 for fld in fld_dataset.values()):
+                sum_dims.append(dim)
+            else:
                 interp_kwargs[dim] = xr.DataArray(locations_dim, dims=edge_index_dim)
 
         components = {}
         for fld_name, arr in fld_dataset.items():
-            components[fld_name] = arr.interp(
-                **interp_kwargs, assume_sorted=True, kwargs=dict(fill_value=None)
-            ).sum("f")
+            components[fld_name] = (
+                arr.interp(**interp_kwargs, assume_sorted=True, kwargs=dict(fill_value=None))
+                .sum("f")
+                .sum(sum_dims)
+            )
 
         return components
 

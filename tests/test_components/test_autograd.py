@@ -55,7 +55,7 @@ params0 = np.random.random(N_PARAMS) - 0.5
 params0 /= np.linalg.norm(params0)
 
 # whether to plot the simulation within the objective function
-PLOT_SIM = False
+PLOT_SIM = True
 
 # whether to include a call to `objective(params)` in addition to gradient
 CALL_OBJECTIVE = False
@@ -70,7 +70,7 @@ FWIDTH = FREQ0 / 10
 # sim sizes
 LZ = 7.0 * WVL
 
-IS_3D = True
+IS_3D = False
 
 # TODO: test 2D and 3D parameterized
 
@@ -346,15 +346,16 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     radii = 1.0 + 0.5 * params_01
 
     phis = 2 * anp.pi * anp.linspace(0, 1, NUM_VERTICES + 1)[:NUM_VERTICES]
-    xs = 1.5 * anp.cos(phis)
-    ys = 1.5 * anp.sin(phis)
+    xs = radii * anp.cos(phis)
+    ys = radii * anp.sin(phis)
     vertices = anp.stack((xs, ys), axis=-1)
-    slab_bounds = (-0.5 * params_01, 0.5 * params_01)
+    slab_bounds = (-0.5, 0.5)
+    # slab_bounds = (-0.5 * params_01, 0.5 * params_01)
     polyslab = td.Structure(
         geometry=td.PolySlab(
             vertices=vertices,
             slab_bounds=slab_bounds,
-            axis=2,
+            axis=0,
             sidewall_angle=0.00,
             dilation=0.00,
         ),
