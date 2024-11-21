@@ -45,6 +45,9 @@ _MAX_POLYSLAB_VERTICES_FOR_TRIANGULATION = 500
 
 _MIN_POLYGON_AREA = fp_eps
 
+# number of points per dimension when discretizing polyslab faces for slab bounds gradients
+_NUM_PTS_DIM_SLAB_BOUNDS = 30
+
 
 class PolySlab(base.Planar):
     """Polygon extruded with optional sidewall angle along axis direction.
@@ -1394,19 +1397,22 @@ class PolySlab(base.Planar):
                 vjps[key] = vjp
 
             elif key[0] == "slab_bounds":
-                vjp_min_max = self.compute_derivative_slab_bounds(derivative_info=derivative_info)
-                vjps[key] = vjp_min_max[key[1]]
+                vjp = self.compute_derivative_slab_bounds(
+                    derivative_info=derivative_info, min_max_index=key[1]
+                )
+                vjps[key] = vjp
 
             else:
                 raise ValueError(f"No derivative defined with respect to 'PolySlab' field '{key}'.")
 
         return vjps
 
-    def compute_derivative_slab_bounds(self, derivative_info: DerivativeInfo) -> TracedVertices:
+    def compute_derivative_slab_bounds(
+        self, derivative_info: DerivativeInfo, min_max_index: int
+    ) -> TracedVertices:
         """Derivative with respect to slab_bounds."""
 
-        num_pts = 10
-        num_cells = num_pts * num_pts
+        num_cells = _NUM_PTS_DIM_SLAB_BOUNDS * _NUM_PTS_DIM_SLAB_BOUNDS
         ones = np.ones(num_cells)
         zeros = np.zeros(num_cells)
 
@@ -1415,70 +1421,61 @@ class PolySlab(base.Planar):
         ax_min, (r1_min, r2_min) = self.pop_axis(rmin, axis=self.axis)
         ax_max, (r1_max, r2_max) = self.pop_axis(rmax, axis=self.axis)
 
-        # get center points and areas
-        r1_centers = np.linspace(r1_min, r1_max, 2 * num_pts + 1)[1::2]
-        r2_centers = np.linspace(r2_min, r2_max, 2 * num_pts + 1)[1::2]
-        planar_centers_1, planar_centers_2 = np.meshgrid(r1_centers, r2_centers, indexing="ij")
-        planar_centers = np.stack((planar_centers_1.flatten(), planar_centers_2.flatten()), axis=-1)
+        def meshgrid_flatten_stack(*args) -> np.ndarray:
+            """Take set of `d` coords, meshgrid them, flatten, and assemble in `(N, d)` array."""
+            coords = np.meshgrid(*args, indexing="ij")
+            coords = [c.flatten() for c in coords]
+            return np.stack(coords, axis=-1)
 
-        area = (r1_max - r1_min) * (r2_max - r2_min) / num_pts / num_pts
-        edge_centers_xyz_min = self.unpop_axis_vect(ones * ax_min, planar_centers)
-        edge_centers_xyz_max = self.unpop_axis_vect(ones * ax_max, planar_centers)
+        # get center points and areas
+        r1_centers = np.linspace(r1_min, r1_max, 2 * _NUM_PTS_DIM_SLAB_BOUNDS + 1)[1::2]
+        r2_centers = np.linspace(r2_min, r2_max, 2 * _NUM_PTS_DIM_SLAB_BOUNDS + 1)[1::2]
+        planar_centers = meshgrid_flatten_stack(r1_centers, r2_centers)
+
+        area = (r1_max - r1_min) * (r2_max - r2_min) / num_cells
         areas = area * np.ones(num_cells)
 
-        # construct basis functions
-        normals_min = self.unpop_axis_vect(-ones, np.stack((zeros, zeros), axis=-1))
-        normals_max = self.unpop_axis_vect(+ones, np.stack((zeros, zeros), axis=-1))
-        perps1 = self.unpop_axis_vect(zeros, np.stack((ones, zeros), axis=-1))
-        perps2 = self.unpop_axis_vect(zeros, np.stack((zeros, ones), axis=-1))
+        def get_grad(min_max_index: int) -> float:
+            """Compute gradient for either min or max dimension."""
 
-        rr1_max, rr2_max, axx_max = np.meshgrid(r1_centers, r2_centers, ax_max)
-        rr1_min, rr2_min, axx_min = np.meshgrid(r1_centers, r2_centers, ax_min)
+            # select the normal sign and the axis value
+            if min_max_index == 0:
+                normal_sign = -1
+                ax_val = ax_min
+            else:
+                normal_sign = +1
+                ax_val = ax_max
 
-        xx_max, yy_max, zz_max = self.unpop_axis_vect(
-            axx_max.flatten(),
-            np.stack((rr1_max.flatten(), rr2_max.flatten()), axis=-1),
-        ).T
+            edge_centers_xyz = self.unpop_axis_vect(ones * ax_val, planar_centers)
 
-        xx_min, yy_min, zz_min = self.unpop_axis_vect(
-            axx_min.flatten(),
-            np.stack((rr1_min.flatten(), rr2_min.flatten()), axis=-1),
-        ).T
+            # construct basis functions
+            normals = self.unpop_axis_vect(normal_sign * ones, np.stack((zeros, zeros), axis=-1))
+            perps1 = self.unpop_axis_vect(zeros, np.stack((ones, zeros), axis=-1))
+            perps2 = self.unpop_axis_vect(zeros, np.stack((zeros, ones), axis=-1))
 
-        inside_min = self.inside(xx_min, yy_min, zz_min).squeeze().flatten()
-        inside_max = self.inside(xx_max, yy_max, zz_max).squeeze().flatten()
+            rr1, rr2, axx_val = meshgrid_flatten_stack(r1_centers, r2_centers, ax_val).T
 
-        areas_max = areas * inside_max
-        areas_min = areas * inside_min
+            xx, yy, zz = self.unpop_axis_vect(axx_val, np.stack((rr1, rr2), axis=-1)).T
 
-        # compute DerivativeSurfaceMesh for each top and bottom.
-        surface_mesh_min = DerivativeSurfaceMesh(
-            centers=edge_centers_xyz_min,
-            areas=areas_min,
-            normals=normals_min,
-            perps1=perps1,
-            perps2=perps2,
-        )
+            inside = self.inside(xx, yy, zz).squeeze().flatten()
 
-        surface_mesh_max = DerivativeSurfaceMesh(
-            centers=edge_centers_xyz_max,
-            areas=areas_max,
-            normals=normals_max,
-            perps1=perps1,
-            perps2=perps2,
-        )
+            areas_masked = areas * inside
 
-        grads_min = derivative_info.grad_surfaces(surface_mesh=surface_mesh_min)
-        grads_max = derivative_info.grad_surfaces(surface_mesh=surface_mesh_max)
+            # compute DerivativeSurfaceMesh for each top and bottom.
+            surface_mesh = DerivativeSurfaceMesh(
+                centers=edge_centers_xyz,
+                areas=areas_masked,
+                normals=normals,
+                perps1=perps1,
+                perps2=perps2,
+            )
 
-        vjp_min = np.real(np.sum(grads_min).item())
-        vjp_max = np.real(np.sum(grads_max).item())
+            grads = derivative_info.grad_surfaces(surface_mesh=surface_mesh)
+            vjp = np.real(np.sum(grads).item())
 
-        import pdb
+            return vjp
 
-        pdb.set_trace()
-
-        return [vjp_min, vjp_max]
+        return get_grad(min_max_index)
 
     def compute_derivative_vertices(self, derivative_info: DerivativeInfo) -> TracedVertices:
         # derivative w.r.t each edge
