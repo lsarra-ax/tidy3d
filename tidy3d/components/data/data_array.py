@@ -27,6 +27,7 @@ from ...constants import (
     WATT,
 )
 from ...exceptions import DataError, FileError
+from ...log import log
 from ..autograd import TidyArrayBox, get_static, interpn, is_tidy_box
 from ..types import Axis, Bound
 
@@ -125,6 +126,12 @@ class DataArray(xr.DataArray):
         This does not check every 'DataArray' by default. Instead, when required, this check can be
         called from a validator, as is the case with 'CustomMedium' and 'CustomFieldSource'.
         """
+        import importlib.util
+
+        if importlib.util.find_spec("scipy") is None:
+            log.warning("SciPy not installed, skipping '_interp_validator'...")
+            return
+
         if field_name is None:
             field_name = "DataArray"
 

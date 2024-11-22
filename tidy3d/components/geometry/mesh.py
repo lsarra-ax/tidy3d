@@ -63,6 +63,12 @@ class TriangleMesh(base.Geometry, ABC):
         if val is None:
             return None
 
+        import importlib.util
+
+        if importlib.util.find_spec("trimesh") is None:
+            log.warning("trimesh not installed, skipping '_check_mesh'...")
+            return val
+
         import trimesh
 
         mesh = cls._triangles_to_trimesh(val.surface_mesh)
