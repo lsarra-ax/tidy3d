@@ -1397,17 +1397,23 @@ class PolySlab(base.Planar):
                 vjps[key] = vjp
 
             elif key[0] == "slab_bounds":
-                vjp = self.compute_derivative_slab_bounds(
-                    derivative_info=derivative_info, min_max_index=key[1]
+                min_max_index = key[1]
+                vjp_face = self.compute_derivative_slab_face(
+                    derivative_info=derivative_info, min_max_index=min_max_index
                 )
-                vjps[key] = vjp
+
+                # for - slab_bounds element, we need to reverse the face VJP since it points out (-)
+                if min_max_index == 0:
+                    vjp_face *= -1
+
+                vjps[key] = vjp_face
 
             else:
                 raise ValueError(f"No derivative defined with respect to 'PolySlab' field '{key}'.")
 
         return vjps
 
-    def compute_derivative_slab_bounds(
+    def compute_derivative_slab_face(
         self, derivative_info: DerivativeInfo, min_max_index: int
     ) -> TracedVertices:
         """Derivative with respect to slab_bounds."""
@@ -1442,16 +1448,14 @@ class PolySlab(base.Planar):
 
             # select the normal sign and the axis value
             if min_max_index == 0:
-                normal_sign = -1
                 ax_val = ax_min
             else:
-                normal_sign = +1
                 ax_val = ax_max
 
             edge_centers_xyz = self.unpop_axis_vect(ones * ax_val, planar_centers)
 
             # construct basis functions
-            normals = self.unpop_axis_vect(normal_sign * ones, np.stack((zeros, zeros), axis=-1))
+            normals = self.unpop_axis_vect(ones, np.stack((zeros, zeros), axis=-1))
             perps1 = self.unpop_axis_vect(zeros, np.stack((ones, zeros), axis=-1))
             perps2 = self.unpop_axis_vect(zeros, np.stack((zeros, ones), axis=-1))
 
@@ -1478,6 +1482,36 @@ class PolySlab(base.Planar):
             return vjp
 
         return get_grad(min_max_index)
+
+    def compute_derivative_slab_face_single_pt(
+        self, derivative_info: DerivativeInfo, min_max_index: int
+    ) -> TracedVertices:
+        """Derivative with respect to slab faces (single point approximation)."""
+
+        self_static = self.to_static()
+
+        center_r1, center_r2 = np.mean(self_static.vertices, axis=0)
+        center_axis = self_static.slab_bounds[min_max_index]
+        center_xyz = self.unpop_axis(center_axis, (center_r1, center_r2), axis=self.axis)
+
+        area = self_static._area(self_static.vertices)
+
+        norm = self.unpop_axis(1, (0, 0), axis=self.axis)
+        perp1 = self.unpop_axis(0, (0, 1), axis=self.axis)
+        perp2 = self.unpop_axis(0, (1, 0), axis=self.axis)
+
+        surface_mesh = DerivativeSurfaceMesh(
+            centers=[center_xyz],
+            areas=[area],
+            normals=[norm],
+            perps1=[perp1],
+            perps2=[perp2],
+        )
+
+        grads = derivative_info.grad_surfaces(surface_mesh=surface_mesh)
+        vjp = np.real(np.sum(grads).item())
+
+        return vjp
 
     def compute_derivative_vertices(self, derivative_info: DerivativeInfo) -> TracedVertices:
         # derivative w.r.t each edge

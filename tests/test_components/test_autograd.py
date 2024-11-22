@@ -40,7 +40,7 @@ TEST_CUSTOM_MEDIUM_SPEED = False
 TEST_POLYSLAB_SPEED = False
 
 # whether to run numerical gradient tests, off by default because it runs real simulations
-RUN_NUMERICAL = True
+RUN_NUMERICAL = False
 _NUMERICAL_COMBINATION = ("polyslab", "mode")
 
 TEST_MODES = ("pipeline", "adjoint", "speed")
@@ -55,7 +55,7 @@ params0 = np.random.random(N_PARAMS) - 0.5
 params0 /= np.linalg.norm(params0)
 
 # whether to plot the simulation within the objective function
-PLOT_SIM = True
+PLOT_SIM = False
 
 # whether to include a call to `objective(params)` in addition to gradient
 CALL_OBJECTIVE = False
@@ -70,7 +70,8 @@ FWIDTH = FREQ0 / 10
 # sim sizes
 LZ = 7.0 * WVL
 
-IS_3D = False
+IS_3D = True
+POLYSLAB_AXIS = 0
 
 # TODO: test 2D and 3D parameterized
 
@@ -83,7 +84,7 @@ DA_SHAPE_X = 1 if IS_3D else 1
 DA_SHAPE = (DA_SHAPE_X, 1_000, 1_000) if TEST_CUSTOM_MEDIUM_SPEED else (DA_SHAPE_X, 12, 12)
 
 # number of vertices in the polyslab
-NUM_VERTICES = 100_000 if TEST_POLYSLAB_SPEED else 110
+NUM_VERTICES = 100_000 if TEST_POLYSLAB_SPEED else 4
 
 PNT_DIPOLE = td.PointDipole(
     center=(0, 0, -LZ / 2 + WVL),
@@ -104,6 +105,7 @@ PLANE_WAVE = td.PlaneWave(
         fwidth=FWIDTH,
         amplitude=1.0,
     ),
+    pol_angle=0,
 )
 
 # sim that we add traced structures and monitors to
@@ -128,7 +130,7 @@ SIM_BASE = td.Simulation(
             name="extraneous",
         )
     ],
-    boundary_spec=td.BoundarySpec.pml(x=False, y=True, z=True),
+    boundary_spec=td.BoundarySpec.pml(x=PML_X, y=True, z=True),
     grid_spec=td.GridSpec.uniform(dl=0.01 * td.C_0 / FREQ0),
 )
 
@@ -343,19 +345,27 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     matrix = np.random.random((N_PARAMS,)) - 0.5
     params_01 = 0.5 * (anp.tanh(matrix @ params / 3) + 1)
 
-    radii = 1.0 + 0.5 * params_01
+    free_param = "vertices" if POLYSLAB_AXIS in [0, 2] else "slab_bounds"
+
+    if free_param == "vertices":
+        radii = 0.5 + 0.5 * params_01
+        slab_bounds = (-0.5, 0.5)
+    elif free_param == "slab_bounds":
+        radii = 1.0
+        slab_bounds = (-0.5 * params_01, 0.5 * params_01)  # 5%, 0.01
+        # slab_bounds = (-0.5 * params_01, 0.5) # -1x off
+        # slab_bounds = (-0.5, 0.5 * params_01) # 5%, 0.95
 
     phis = 2 * anp.pi * anp.linspace(0, 1, NUM_VERTICES + 1)[:NUM_VERTICES]
     xs = radii * anp.cos(phis)
     ys = radii * anp.sin(phis)
     vertices = anp.stack((xs, ys), axis=-1)
-    slab_bounds = (-0.5, 0.5)
-    # slab_bounds = (-0.5 * params_01, 0.5 * params_01)
+
     polyslab = td.Structure(
         geometry=td.PolySlab(
             vertices=vertices,
             slab_bounds=slab_bounds,
-            axis=0,
+            axis=POLYSLAB_AXIS,
             sidewall_angle=0.00,
             dilation=0.00,
         ),
@@ -604,7 +614,7 @@ def get_functions(structure_key: str, monitor_key: str) -> typing.Callable:
             structures.append(structures_traced_dict[structure_key])
 
         sim = SIM_BASE
-        if "diff" in monitor_dict:
+        if "diff" in monitor_keys:
             sim = sim.updated_copy(boundary_spec=td.BoundarySpec.pml(x=False, y=False, z=True))
         sim = sim.updated_copy(structures=structures, monitors=monitors)
 
@@ -656,6 +666,7 @@ def test_autograd_numerical(structure_key, monitor_key):
         sim = make_sim(*args)
         if PLOT_SIM:
             plot_sim(sim, plot_eps=True)
+
         data = web.run(sim, task_name="autograd_test_numerical", verbose=False)
         value = postprocess(data)
         return value
@@ -665,7 +676,7 @@ def test_autograd_numerical(structure_key, monitor_key):
     assert anp.all(grad != 0.0), "some gradients are 0"
 
     # numerical gradients
-    delta = 1e-3
+    delta = 1e-2
     sims_numerical = {}
 
     params_num = np.zeros((N_PARAMS, N_PARAMS))
