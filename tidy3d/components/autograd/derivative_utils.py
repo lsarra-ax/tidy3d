@@ -236,8 +236,6 @@ class DerivativeInfo(Tidy3dBaseModel):
         contrib_D = -delta_eps_inv * D_der_norm
         vjps += contrib_D
 
-        # import pdb; pdb.set_trace()
-
         # perform E-perpendicular integrals
         for E_der in (E_der_perp1, E_der_perp2):
             contrib_E = E_der * delta_eps
@@ -255,24 +253,15 @@ class DerivativeInfo(Tidy3dBaseModel):
         xs, ys, zs = spatial_coords.T
         edge_index_dim = "edge_index"
 
-        sum_dims = []
         interp_kwargs = {}
         for dim, locations_dim in zip("xyz", (xs, ys, zs)):
-            # only include dims where the data has more than 1 coord, to avoid warnings and errors
-            if False and any(np.array(fld.coords[dim]).size == 1 for fld in fld_dataset.values()):
-                sum_dims.append(dim)
-            else:
-                interp_kwargs[dim] = xr.DataArray(locations_dim, dims=edge_index_dim)
+            interp_kwargs[dim] = xr.DataArray(locations_dim, dims=edge_index_dim)
 
         components = {}
         for fld_name, arr in fld_dataset.items():
-            components[fld_name] = (
-                arr.interp(**interp_kwargs, assume_sorted=True, kwargs=dict(fill_value=None))
-                .sum("f")
-                .sum(sum_dims)
-            )
-
-        # import pdb; pdb.set_trace()
+            components[fld_name] = arr.interp(
+                **interp_kwargs, assume_sorted=True, kwargs=dict(fill_value=None)
+            ).sum("f")
 
         return components
 
