@@ -17,7 +17,29 @@ PermittivityData = dict[str, ScalarFieldDataArray]
 
 
 class DerivativeSurfaceMesh(Tidy3dBaseModel):
-    """Stores information about the surfaces of an object to be used for derivative calculation."""
+    """Stores information about the surfaces of an object to be used for derivative calculation.
+
+    user guide: this class is used to construct derivatives with respect to surface elements
+    given some forward and adjoint fields stored in a ``DerivativeInfo`` class. To use it,
+    you must specify the central locations of all the surface elements in ``centers``,
+    along with the area of each element in ``areas``. Then you need to specify three orthogonal
+    vectors (``normals``, ``perps1`` and ``perps2``). The derivative will be computed with
+    respect to a change in material along the ``normals`` direction. It is important to note
+    that the sign of these basis vectors is irrelevant since we end up multiplying the forward
+    and adjoint fields together in these bases.
+
+    After this ``DerivativeSurfaceMesh`` is constructed, given some ``DerivativeInfo`` in the
+    gradient calculation, a call to ``DerivativeInfo.grad_surfaces(x: DerivativeSurfaceMesh)``
+    will return the gradient with respect to a change in all of the provided surfaces.
+
+    The gradient is with respect to a change from the surface element permittivity from the
+    ``eps_in`` to ``eps_out`` field. So in principle it is always computing gradients with
+    respect to an infinitesimal outward shift in the normal direction. For example, for
+    ``PolySlab.vertices``, this means shifting each edge to the background.
+    For ``PolySlab.slab_bounds``, this means shifting the bound in either + or - direction if it
+    is index ``[1]`` or ``[0]`` respectively. This renders the sign of the normal vector
+    irrelevant.
+    """
 
     centers: ArrayLike = pd.Field(
         ...,
