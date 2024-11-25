@@ -1333,6 +1333,7 @@ def test_pole_residue(monkeypatch):
         eps_out=1.0,
         frequency=freq,
         bounds=((-1, -1, -1), (1, 1, 1)),
+        bounds_intersect=((-1, -1, -1), (1, 1, 1)),
     )
 
     grads_computed = pr.compute_derivatives(derivative_info=info)
@@ -1412,6 +1413,7 @@ def test_custom_pole_residue(monkeypatch):
         eps_out=1.0,
         frequency=freq,
         bounds=((-1, -1, -1), (1, 1, 1)),
+        bounds_intersect=((-1, -1, -1), (1, 1, 1)),
     )
 
     grads_computed = pr.compute_derivatives(derivative_info=info)
