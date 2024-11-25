@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.0rc1]
 
+### Added
+- Support for differentiation with respect to `ComplexPolySlab.vertices`.
+- Introduce RF material library. Users can now import `rf_material_library` from `tidy3d.plugins.microwave`.
+- Users can specify the background medium for a structure in automatic differentiation by supplying `Structure.background_permittivity`.
+- `DirectivityMonitor` to compute antenna directivity.
+- Added `plot_length_units` to `Simulation` and `Scene` to allow for specifying units, which improves axis labels and scaling when plotting.
+- Added the helper function `compute_power_delivered_by_port`  to `TerminalComponentModeler` which computes power delivered to a microwave network from a port.
+- Added the account function `account` to check credit balance and daily free simulation balance.
+- Added `WavePort` to the `TerminalComponentModeler` which is the suggested port type for exciting transmission lines.
+- Added plotting functionality to voltage and current path integrals in the `microwave` plugin.
+- Added convenience functions `from_terminal_positions` and `from_circular_path` to simplify setup of `VoltageIntegralAxisAligned` and `CustomCurrentIntegral2D`, respectively.
+- Added `axial_ratio` to `DirectivityData.axial_ratio` for the `DirectivityMonitor`, defined as the ratio of the major axis to the minor axis of the polarization ellipse. 
+`ComponentModeler.batch_data` convenience property to access the `BatchData` corresponding to the component modeler run.
+- Added optimization methods to the Design plugin. The plugin has been expanded to include Bayesian optimization, genetic algorithms and particle swarm optimization. Explanations of these methods are available in new and updated notebooks.
+- Added new support functions for the Design plugin: automated batching of `Simulation` objects, and summary functions with `DesignSpace.estimate_cost` and `DesignSpace.summarize`.
+- Added validation and repair methods for `TriangleMesh` with inward-facing normals.
+- Added `from_admittance_coeffs` to `PoleResidue`, which allows for directly constructing a `PoleResidue` medium from an admittance function in the Laplace domain.
+- Added material type `LossyMetalMedium` that has high DC-conductivity. Its boundaries can be modeled by a surface impedance boundary condition (SIBC). This is treated as a subpixel method, which can be switched by setting `SubpixelSpec(lossy_metal=method)` where `method` can be `Staircasing()`, `VolumetricAveraging()`, or `SurfaceImpedance()`.
+- Added mode solver option `precision='auto'` to automatically select single or double precision for optimizing performance and accuracy.
+- Added `LinearLumpedElement` as a new supported `LumpedElement` type. This enhancement allows for the modeling of two-terminal passive networks, which can include any configuration of resistors, inductors, and capacitors, within the `Simulation`. Simple RLC networks are described using `RLCNetwork`, while more complex networks can be represented by their admittance transfer function through `AdmittanceNetwork`.
+
+### Changed
+- Priority is given to `snapping_points` in `GridSpec` when close to structure boundaries, which reduces the chance of them being skipped.
+- Gradients for autograd are computed server-side by default. They can be computed locally (requiring more data download) by passing `local_gradient=True` to the `web.run()` and related functions.
+- Passing `path_dir` to `ComponentModeler` methods is deprecated in favor of setting `ComponentModeler.path_dir` and will result in an error if the two don't match.
+- `BatchData` is now a mapping and can be accessed and iterated over like a Python dictionary (`.keys()`, `.values()`, `.items()`).
+- `MethodRandom` and `MethodRandomCustom` have been removed from the Design plugin, and `DesignSpace.run_batch` has been superseded by `.run`.
+- Design plugin has been significantly reworked to improve ease of use and allow for new optimization methods.
+- Behavior of `FieldProjector` now matches the server-side computation, which does not truncate the integration surface when it extends into PML regions.
+- Enabled the user to set the `ModeMonitor.colocate` field and changed to `True` by default (fields were actually already returned colocated even though this field was `False` previously).
+- More robust mode solver at radio frequencies.
+- Disallow very small polygons when subdividing 2D structures.
+
+### Fixed
+- Significant speedup for field projection computations.
+- Fix numerical precision issue in `FieldProjectionCartesianMonitor`.
+- Bug where lumped elements in the `Simulation` were being overwritten by the `TerminalComponentModeler`.
+- Bug in `Simulation.subsection` where lumped elements were not being correctly removed.
+- Bug when adding 2D structures to the `Simulation` that are composed of multiple overlapping polygons.
+- Fields stored in `ModeMonitor` objects were computed colocated to the grid boundaries, but the built-in `ModeMonitor.colocate=False` was resulting in wrong results in some cases, most notably if symmetries are also involved.
+- Small inaccuracy when applying a mode solver `bend_radius` when the simulation grid is not symmetric w.r.t. the mode plane center. Previously, the radius was defined w.r.t. the middle grid coordinate, while now it is correctly applied w.r.t. the plane center.
+- Silence warning in graphene from checking fit quality at large frequencies.
+
 ## [2.7.7] - 2024-11-15
 
 ### Added
@@ -96,47 +139,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.7.3] - 2024-09-12
 
 ### Added
-- Support for differentiation with respect to `ComplexPolySlab.vertices`.
-- Introduce RF material library. Users can now import `rf_material_library` from `tidy3d.plugins.microwave`.
-- Users can specify the background medium for a structure in automatic differentiation by supplying `Structure.background_permittivity`.
-- `DirectivityMonitor` to compute antenna directivity.
-- Added `plot_length_units` to `Simulation` and `Scene` to allow for specifying units, which improves axis labels and scaling when plotting.
-- Added the helper function `compute_power_delivered_by_port`  to `TerminalComponentModeler` which computes power delivered to a microwave network from a port.
-- Added the account function `account` to check credit balance and daily free simulation balance.
-- Added `WavePort` to the `TerminalComponentModeler` which is the suggested port type for exciting transmission lines.
-- Added plotting functionality to voltage and current path integrals in the `microwave` plugin.
-- Added convenience functions `from_terminal_positions` and `from_circular_path` to simplify setup of `VoltageIntegralAxisAligned` and `CustomCurrentIntegral2D`, respectively.
-- Added `axial_ratio` to `DirectivityData.axial_ratio` for the `DirectivityMonitor`, defined as the ratio of the major axis to the minor axis of the polarization ellipse. 
-`ComponentModeler.batch_data` convenience property to access the `BatchData` corresponding to the component modeler run.
-- Added optimization methods to the Design plugin. The plugin has been expanded to include Bayesian optimization, genetic algorithms and particle swarm optimization. Explanations of these methods are available in new and updated notebooks.
-- Added new support functions for the Design plugin: automated batching of `Simulation` objects, and summary functions with `DesignSpace.estimate_cost` and `DesignSpace.summarize`.
-- Added validation and repair methods for `TriangleMesh` with inward-facing normals.
-- Added `from_admittance_coeffs` to `PoleResidue`, which allows for directly constructing a `PoleResidue` medium from an admittance function in the Laplace domain.
-- Added material type `LossyMetalMedium` that has high DC-conductivity. Its boundaries can be modeled by a surface impedance boundary condition (SIBC). This is treated as a subpixel method, which can be switched by setting `SubpixelSpec(lossy_metal=method)` where `method` can be `Staircasing()`, `VolumetricAveraging()`, or `SurfaceImpedance()`.
-- Added mode solver option `precision='auto'` to automatically select single or double precision for optimizing performance and accuracy.
-- Added `LinearLumpedElement` as a new supported `LumpedElement` type. This enhancement allows for the modeling of two-terminal passive networks, which can include any configuration of resistors, inductors, and capacitors, within the `Simulation`. Simple RLC networks are described using `RLCNetwork`, while more complex networks can be represented by their admittance transfer function through `AdmittanceNetwork`.
-
-### Changed
-- Priority is given to `snapping_points` in `GridSpec` when close to structure boundaries, which reduces the chance of them being skipped.
-- Gradients for autograd are computed server-side by default. They can be computed locally (requiring more data download) by passing `local_gradient=True` to the `web.run()` and related functions.
-- Passing `path_dir` to `ComponentModeler` methods is deprecated in favor of setting `ComponentModeler.path_dir` and will result in an error if the two don't match.
-- `BatchData` is now a mapping and can be accessed and iterated over like a Python dictionary (`.keys()`, `.values()`, `.items()`).
-- `MethodRandom` and `MethodRandomCustom` have been removed from the Design plugin, and `DesignSpace.run_batch` has been superseded by `.run`.
-- Design plugin has been significantly reworked to improve ease of use and allow for new optimization methods.
-- Behavior of `FieldProjector` now matches the server-side computation, which does not truncate the integration surface when it extends into PML regions.
-- Enabled the user to set the `ModeMonitor.colocate` field and changed to `True` by default (fields were actually already returned colocated even though this field was `False` previously).
-- More robust mode solver at radio frequencies.
-- Disallow very small polygons when subdividing 2D structures.
-
-### Fixed
-- Significant speedup for field projection computations.
-- Fix numerical precision issue in `FieldProjectionCartesianMonitor`.
-- Bug where lumped elements in the `Simulation` were being overwritten by the `TerminalComponentModeler`.
-- Bug in `Simulation.subsection` where lumped elements were not being correctly removed.
-- Bug when adding 2D structures to the `Simulation` that are composed of multiple overlapping polygons.
-- Fields stored in `ModeMonitor` objects were computed colocated to the grid boundaries, but the built-in `ModeMonitor.colocate=False` was resulting in wrong results in some cases, most notably if symmetries are also involved.
-- Small inaccuracy when applying a mode solver `bend_radius` when the simulation grid is not symmetric w.r.t. the mode plane center. Previously, the radius was defined w.r.t. the middle grid coordinate, while now it is correctly applied w.r.t. the plane center.
-- Silence warning in graphene from checking fit quality at large frequencies.
 - Added value_and_grad function to the autograd plugin, importable via `from tidy3d.plugins.autograd import value_and_grad`. Supports differentiating functions with auxiliary data (`value_and_grad(f, has_aux=True)`).
 - `Simulation.num_computational_grid_points` property to examine the number of grid cells that compose the computational domain corresponding to the simulation. This can differ from `Simulation.num_cells` based on boundary conditions and symmetries.
 - Support for `dilation` argument in `JaxPolySlab`.
