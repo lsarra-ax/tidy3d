@@ -148,14 +148,11 @@ from .components.heat_charge.monitor import TemperatureMonitor, VoltageMonitor
 from .components.heat_charge.monitor_data import (
     ChargeSimulationMonitor,
     TemperatureData,
-    TemporalTemperatureMonitor,
-    TemporalVoltageMonitor,
     VoltageData,
 )
 from .components.heat_charge.sim_data import HeatChargeSimulationData, HeatSimulationData
 from .components.heat_charge.simulation import HeatChargeSimulation
 from .components.heat_charge.source import HeatFromElectricSource, HeatSource, UniformHeatSource
-from .components.heat_charge.time_spec import SteadySpec, UnsteadySpec
 
 # heat
 # heat
@@ -505,8 +502,6 @@ __all__ = [
     "ConductorSpec",
     "SemiConductorSpec",
     "InsulatorSpec",
-    "SteadySpec",
-    "UnsteadySpec",
     "HeatSimulation",
     "HeatSimulationData",
     "TemperatureBC",
@@ -530,8 +525,6 @@ __all__ = [
     "VoltageData",
     "HeatChargeBoundarySpec",
     "VoltageMonitor",
-    "TemporalTemperatureMonitor",
-    "TemporalVoltageMonitor",
     "SpaceTimeModulation",
     "SpaceModulation",
     "ContinuousWaveTimeModulation",
