@@ -70,8 +70,8 @@ FWIDTH = FREQ0 / 10
 # sim sizes
 LZ = 7.0 * WVL
 
-IS_3D = True
-POLYSLAB_AXIS = 0
+IS_3D = False
+POLYSLAB_AXIS = 2
 
 # TODO: test 2D and 3D parameterized
 

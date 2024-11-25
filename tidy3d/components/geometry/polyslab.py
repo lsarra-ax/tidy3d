@@ -1418,16 +1418,16 @@ class PolySlab(base.Planar):
     ) -> TracedVertices:
         """Derivative with respect to slab_bounds."""
 
-        num_x = _NUM_PTS_DIM_SLAB_BOUNDS
-        num_y = _NUM_PTS_DIM_SLAB_BOUNDS
+        rmin, rmax = derivative_info.bounds
+        ax_min, (r1_min, r2_min) = self.pop_axis(rmin, axis=self.axis)
+        ax_max, (r1_max, r2_max) = self.pop_axis(rmax, axis=self.axis)
+
+        num_x = 1 if r1_min == r1_max else _NUM_PTS_DIM_SLAB_BOUNDS
+        num_y = 1 if r1_min == r2_max else _NUM_PTS_DIM_SLAB_BOUNDS
 
         num_cells = num_x * num_y
         ones = np.ones(num_cells)
         zeros = np.zeros(num_cells)
-
-        rmin, rmax = self.bounds
-        ax_min, (r1_min, r2_min) = self.pop_axis(rmin, axis=self.axis)
-        ax_max, (r1_max, r2_max) = self.pop_axis(rmax, axis=self.axis)
 
         def meshgrid_flatten_stack(*args) -> np.ndarray:
             """Take set of `d` coords, meshgrid them, flatten, and assemble in `(N, d)` array."""
@@ -1440,7 +1440,11 @@ class PolySlab(base.Planar):
         r2_centers = np.linspace(r2_min, r2_max, 2 * num_y + 1)[1::2]
         planar_centers = meshgrid_flatten_stack(r1_centers, r2_centers)
 
-        area = (r1_max - r1_min) * (r2_max - r2_min) / num_cells
+        area = 1.0
+        for rmin, rmax in zip((r1_min, r2_min), (r1_max, r2_max)):
+            if rmin != rmax:
+                area *= rmax - rmin
+
         areas = area * np.ones(num_cells)
 
         def get_grad(min_max_index: int) -> float:

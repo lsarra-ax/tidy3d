@@ -132,6 +132,14 @@ class DerivativeInfo(Tidy3dBaseModel):
         description="Bounds corresponding to the structure, used in ``Medium`` calculations.",
     )
 
+    bounds_intersect: Bound = pd.Field(
+        ...,
+        title="Geometry and Simulation Intersections Bounds",
+        description="Bounds corresponding to the minimum intersection between the "
+        "structure and the simulation it is contained in."
+        "",
+    )
+
     frequency: float = pd.Field(
         ...,
         title="Frequency of adjoint simulation",
