@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `BatchData` is now a mapping and can be accessed and iterated over like a Python dictionary (`.keys()`, `.values()`, `.items()`).
+### Added
+- Support for differentiation with respect to `PolySlab.slab_bounds`.
 
 ### Fixed
 - Gradient inaccuracy when a multi-frequency monitor is used but a single frequency is selected.
@@ -66,9 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Differential operators `grad` and `value_and_grad` in `tidy3d.plugins.autograd` that behave similarly to the autograd operators but support auxiliary data via `aux_data=True` as well as differentiation w.r.t. `DataArray`.
 - `@scalar_objective` decorator in `tidy3d.plugins.autograd` that wraps objective functions to ensure they return a scalar value and performs additional checks to ensure compatibility of objective functions with autograd. Used by default in `tidy3d.plugins.autograd.value_and_grad` as well as `tidy3d.plugins.autograd.grad`.
 - Autograd support for simulations without adjoint sources in `run` as well as `run_async`, which will not attempt to run the simulation but instead return zero gradients. This can sometimes occur if the objective function gradient does not depend on some simulations, for example when using `min` or `max` in the objective.
-
-- Support for differentiation with respect to `PolySlab.slab_bounds` and `PolySlab.dilation`.
-- Support for differentiation with respect to `PolySlab.slab_bounds`.
 
 ### Changed
 - `CustomMedium` design regions require far less data when performing inverse design by reducing adjoint field monitor size for dims with one pixel.

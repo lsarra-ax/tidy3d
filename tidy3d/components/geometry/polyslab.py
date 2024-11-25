@@ -1389,8 +1389,6 @@ class PolySlab(base.Planar):
 
         vjps = {}
 
-        # TODO: pre-compute slab bounds vjps if we need them, to use below
-
         for key in derivative_info.paths:
             if key == ("vertices",):
                 vjp = self.compute_derivative_vertices(derivative_info=derivative_info)
@@ -1402,7 +1400,8 @@ class PolySlab(base.Planar):
                     derivative_info=derivative_info, min_max_index=min_max_index
                 )
 
-                # for - slab_bounds element, we need to reverse the face VJP since it points out (-)
+                # for ``slab_bounds[0]``, the ``VJP_face`` gives VJP for shifting face out.
+                # corresponds to a decrease ``slab_bounds[0]``. So we need -1 sign.
                 if min_max_index == 0:
                     vjp_face *= -1
 

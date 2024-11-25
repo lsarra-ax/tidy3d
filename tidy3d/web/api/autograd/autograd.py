@@ -881,7 +881,7 @@ def postprocess_adj(
             eps_in=eps_in,
             eps_out=eps_out,
             frequency=freq_adj,
-            bounds=struct_bounds,  # TODO: pass intersecting bounds with sim?
+            bounds=struct_bounds,
             bounds_intersect=bounds_intersect,
         )
 
