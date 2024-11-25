@@ -19,7 +19,6 @@ from .autograd.utils import get_static
 from .base import Tidy3dBaseModel, skip_if_fields_missing
 from .data.data_array import ScalarFieldDataArray
 from .geometry.polyslab import PolySlab
-from .geometry.primitives import Cylinder
 from .geometry.utils import GeometryType, validate_no_transformed_polyslabs
 from .grid.grid import Coords
 from .medium import AbstractCustomMedium, CustomMedium, Medium, Medium2D, MediumType
@@ -259,8 +258,12 @@ class Structure(AbstractStructure):
         center = [get_static(x) for x in box.center]
 
         # polyslab only needs fields at the midpoint along axis
-        if isinstance(geometry, PolySlab) and not isinstance(self.medium, AbstractCustomMedium) and ["geometry", "slab_bounds"] not in field_keys:
-            size[geometry.axis] = 0
+        if (
+            isinstance(geo, PolySlab)
+            and not isinstance(self.medium, AbstractCustomMedium)
+            and ["geometry", "slab_bounds"] not in field_keys
+        ):
+            size[geo.axis] = 0
 
         mnt_fld = FieldMonitor(
             size=size,
