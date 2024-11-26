@@ -136,11 +136,19 @@ class WavePort(AbstractTerminalPort, Box):
     def compute_voltage(self, sim_data: SimulationData) -> FreqDataArray:
         """Helper to compute voltage across the port."""
         field_monitor = sim_data[self._field_monitor_name]
+        if self.voltage_integral is None:
+            current = self.current_integral.compute_current(field_monitor)
+            sign = 1 if self.direction == "+" else -1
+            return 2 * sign * field_monitor.flux / np.conj(current)
         return self.voltage_integral.compute_voltage(field_monitor)
 
     def compute_current(self, sim_data: SimulationData) -> FreqDataArray:
         """Helper to compute current flowing through the port."""
         field_monitor = sim_data[self._field_monitor_name]
+        if self.current_integral is None:
+            voltage = self.voltage_integral.compute_voltage(field_monitor)
+            sign = 1 if self.direction == "+" else -1
+            return 2 * sign * field_monitor.flux / np.conj(voltage)
         return self.current_integral.compute_current(field_monitor)
 
     def compute_port_impedance(

@@ -221,6 +221,7 @@ class TerminalComponentModeler(AbstractComponentModeler):
             sim_data = batch_data[self._task_name(port=port_in)]
             for port_out in self.ports:
                 V_out, I_out = port_VI(port_out, sim_data)
+
                 V_matrix.loc[
                     dict(
                         port_in=port_in.name,

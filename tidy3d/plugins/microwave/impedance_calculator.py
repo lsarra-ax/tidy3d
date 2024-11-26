@@ -69,20 +69,21 @@ class ImpedanceCalculator(Tidy3dBaseModel):
         # a time signal, then it is real and flux corresponds to the instantaneous power. Otherwise
         # the input field is in frequency domain, where flux indicates the time-averaged power
         # 0.5*Re(V*conj(I)).
-        if not self.voltage_integral:
+        if self.voltage_integral and self.current_integral:
+            impedance = voltage / current
+        elif not self.voltage_integral:
             flux = em_field.flux
             if isinstance(em_field, FieldTimeData):
-                voltage = flux / current
+                impedance = flux.abs() / current**2
             else:
-                voltage = 2 * flux / np.conj(current)
-        if not self.current_integral:
+                impedance = 2 * abs(flux) / (current * np.conj(current))
+        else:  # not self.current_integral
             flux = em_field.flux
             if isinstance(em_field, FieldTimeData):
-                current = flux / voltage
+                impedance = voltage**2 / abs(flux)
             else:
-                current = np.conj(2 * flux / voltage)
+                impedance = (voltage * np.conj(voltage)) / (2 * abs(flux))
 
-        impedance = voltage / current
         impedance = ImpedanceCalculator._set_data_array_attributes(impedance)
         return impedance
 
