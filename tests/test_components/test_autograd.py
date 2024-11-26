@@ -84,7 +84,7 @@ DA_SHAPE_X = 1 if IS_3D else 1
 DA_SHAPE = (DA_SHAPE_X, 1_000, 1_000) if TEST_CUSTOM_MEDIUM_SPEED else (DA_SHAPE_X, 12, 12)
 
 # number of vertices in the polyslab
-NUM_VERTICES = 100_000 if TEST_POLYSLAB_SPEED else 4
+NUM_VERTICES = 100_000 if TEST_POLYSLAB_SPEED else 25
 
 PNT_DIPOLE = td.PointDipole(
     center=(0, 0, -LZ / 2 + WVL),
@@ -345,16 +345,17 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     matrix = np.random.random((N_PARAMS,)) - 0.5
     params_01 = 0.5 * (anp.tanh(matrix @ params / 3) + 1)
 
-    free_param = "vertices" if POLYSLAB_AXIS in [0, 2] else "slab_bounds"
+    free_param = "vertices" if POLYSLAB_AXIS == 0 else "slab_bounds"
 
     if free_param == "vertices":
         radii = 0.5 + 0.5 * params_01
         slab_bounds = (-0.5, 0.5)
     elif free_param == "slab_bounds":
         radii = 1.0
-        slab_bounds = (-0.5 * params_01, 0.5 * params_01)  # 5%, 0.01
-        # slab_bounds = (-0.5 * params_01, 0.5) # -1x off
-        # slab_bounds = (-0.5, 0.5 * params_01) # 5%, 0.95
+        shift = 0.1 * params_01
+        slab_bounds = (-0.5 + shift, 0.5 + shift)
+        # slab_bounds = (-0.5 + shift, 0.5)
+        # slab_bounds = (-0.5, 0.5 + shift)
 
     phis = 2 * anp.pi * anp.linspace(0, 1, NUM_VERTICES + 1)[:NUM_VERTICES]
     xs = radii * anp.cos(phis)
@@ -581,7 +582,7 @@ if TEST_POLYSLAB_SPEED:
     args = [("polyslab", "mode")]
 
 
-args = [("polyslab", "mode")]
+# args = [("polyslab", "mode")]
 
 
 def get_functions(structure_key: str, monitor_key: str) -> typing.Callable:
@@ -667,7 +668,7 @@ def test_autograd_numerical(structure_key, monitor_key):
         if PLOT_SIM:
             plot_sim(sim, plot_eps=True)
 
-        data = web.run(sim, task_name="autograd_test_numerical", verbose=False)
+        data = web.run(sim, task_name="autograd_test_numerical", verbose=False, local_gradient=True)
         value = postprocess(data)
         return value
 
@@ -676,7 +677,7 @@ def test_autograd_numerical(structure_key, monitor_key):
     assert anp.all(grad != 0.0), "some gradients are 0"
 
     # numerical gradients
-    delta = 1e-2
+    delta = 1e-1
     sims_numerical = {}
 
     params_num = np.zeros((N_PARAMS, N_PARAMS))

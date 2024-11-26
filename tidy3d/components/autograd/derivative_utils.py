@@ -251,7 +251,7 @@ class DerivativeInfo(Tidy3dBaseModel):
         """Compute the value of an dict with keys Ex, Ey, Ez at a set of spatial locations."""
 
         xs, ys, zs = spatial_coords.T
-        edge_index_dim = "edge_index"
+        edge_index_dim = "i"
 
         interp_kwargs = {}
         for dim, locations_dim in zip("xyz", (xs, ys, zs)):

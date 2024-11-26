@@ -261,7 +261,7 @@ class Structure(AbstractStructure):
         if (
             isinstance(geo, PolySlab)
             and not isinstance(self.medium, AbstractCustomMedium)
-            and ["geometry", "slab_bounds"] not in field_keys
+            and field_keys == [("vertices",)]
         ):
             size[geo.axis] = 0
 
