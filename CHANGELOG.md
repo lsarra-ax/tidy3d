@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Gradient inaccuracy when a multi-frequency monitor is used but a single frequency is selected.
 - Revert single cell center approximation for custom medium gradient.
+- Significant speedup for field projection computations.
+- Fix numerical precision issue in `FieldProjectionCartesianMonitor`.
+- Bug where lumped elements in the `Simulation` were being overwritten by the `TerminalComponentModeler`.
+- Bug in `Simulation.subsection` where lumped elements were not being correctly removed.
+- Bug when adding 2D structures to the `Simulation` that are composed of multiple overlapping polygons.
+- Fields stored in `ModeMonitor` objects were computed colocated to the grid boundaries, but the built-in `ModeMonitor.colocate=False` was resulting in wrong results in some cases, most notably if symmetries are also involved.
+- Small inaccuracy when applying a mode solver `bend_radius` when the simulation grid is not symmetric w.r.t. the mode plane center. Previously, the radius was defined w.r.t. the middle grid coordinate, while now it is correctly applied w.r.t. the plane center.
+- Silence warning in graphene from checking fit quality at large frequencies.
+- `CustomCurrentSource` now correctly validates its current dataset.
 
 ## [2.7.7] - 2024-11-15
 
