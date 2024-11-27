@@ -12,6 +12,7 @@ from ...constants import inf
 from ...exceptions import DataError, ValidationError
 from ...log import log
 from ...packaging import verify_packages_import
+from ..autograd.derivative_utils import AutogradFieldMap, DerivativeInfo, DerivativeSurfaceMesh
 from ..base import cached_property
 from ..data.data_array import DATA_ARRAY_MAP, TriangleMeshDataArray
 from ..data.dataset import TriangleMeshDataset
@@ -441,6 +442,72 @@ class TriangleMesh(base.Geometry, ABC):
                 )
             log.warning(f"Error encountered: {e}")
             return self.bounding_box.intersections_plane(x=x, y=y, z=z)
+
+    def compute_derivatives(self, derivative_info: DerivativeInfo) -> AutogradFieldMap:
+        """Compute adjoint derivatives with respect to ``mesh_dataset`` elements."""
+
+        vjp = {}
+
+        # just take care of the case where there are no paths
+        if not derivative_info.paths:
+            return vjp
+
+        # assuming (N,3,3) list of triangle vertices
+        # "face_index", "vertex_index", "axis"
+        mesh = self.trimesh
+
+        normals = mesh.face_normals
+        areas = mesh.area_faces
+
+        # assuming (N,3,3) list of triangle vertices
+        # "face_index", "vertex_index", "axis"
+        vertices = self.triangles
+
+        perps1 = vertices[:, 0:2, :]
+        perps1 /= np.linalg.norm(perps1)
+
+        perps2 = np.cross(perps1, normals)
+
+        centers = np.mean(vertices, axis=1)
+
+        # pre-compute the grads for all of the surface elements
+        surface_mesh = DerivativeSurfaceMesh(
+            centers=centers,
+            areas=areas,
+            normals=normals,
+            perps1=perps1,
+            perps2=perps2,
+        )
+
+        grads = derivative_info.grad_surfaces(surface_mesh=surface_mesh)
+        vjp_values = np.real(grads).values
+
+        # parse out any index info and store into vjp dict
+        for field_key in derivative_info.paths:
+            field_name, *index = field_key
+
+            if field_name == "mesh_dataset":
+                if index:
+                    if isinstance(index, int):
+                        vjp[field_key] = vjp_values[index]
+                    else:
+                        raise ValueError(
+                            f"Given field key of '{field_key}' for 'TriangleMesh'. "
+                            f"Cant parse the element index '{index}'. "
+                            "Please raise an issue if you encounter this."
+                        )
+
+                else:
+                    vjp[field_key] = vjp_values[index]
+
+            else:
+                raise ValueError(
+                    f"Given field key of '{field_key}' for 'TriangleMesh'. "
+                    f"Cant parse the field_name '{field_name}'. "
+                    "Please raise an issue if you encounter this."
+                )
+
+        return vjp
 
     def inside(
         self, x: np.ndarray[float], y: np.ndarray[float], z: np.ndarray[float]

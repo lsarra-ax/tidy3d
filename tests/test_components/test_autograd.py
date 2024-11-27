@@ -40,8 +40,8 @@ TEST_CUSTOM_MEDIUM_SPEED = False
 TEST_POLYSLAB_SPEED = False
 
 # whether to run numerical gradient tests, off by default because it runs real simulations
-RUN_NUMERICAL = False
-_NUMERICAL_COMBINATION = ("polyslab", "mode")
+RUN_NUMERICAL = True
+_NUMERICAL_COMBINATION = ("trimesh", "mode")
 
 TEST_MODES = ("pipeline", "adjoint", "speed")
 TEST_MODE = "speed" if TEST_POLYSLAB_SPEED else "pipeline"
@@ -55,7 +55,7 @@ params0 = np.random.random(N_PARAMS) - 0.5
 params0 /= np.linalg.norm(params0)
 
 # whether to plot the simulation within the objective function
-PLOT_SIM = False
+PLOT_SIM = True
 
 # whether to include a call to `objective(params)` in addition to gradient
 CALL_OBJECTIVE = False
@@ -455,6 +455,13 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
     )
     cylinder = td.Structure(geometry=cylinder_geo, medium=polyslab.medium)
 
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    faces = np.array([[1, 2, 3], [0, 3, 2], [0, 1, 3], [0, 2, 1]])
+    vertices = vertices + np.mean(params)
+    geo_tm = td.TriangleMesh.from_vertices_faces(vertices, faces)
+
+    triangle_mesh = td.Structure(geometry=geo_tm, medium=polyslab.medium)
+
     return dict(
         medium=medium,
         center_list=center_list,
@@ -467,6 +474,7 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
         pole_res=pole_res,
         custom_pole_res=custom_pole_res,
         cylinder=cylinder,
+        trimesh=triangle_mesh,
     )
 
 
