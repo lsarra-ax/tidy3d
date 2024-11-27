@@ -463,7 +463,7 @@ class TriangleMesh(base.Geometry, ABC):
         # "face_index", "vertex_index", "axis"
         vertices = self.triangles
 
-        perps1 = vertices[:, 0:2, :]
+        perps1 = vertices[:, 0:2, :].squeeze()
         perps1 /= np.linalg.norm(perps1)
 
         perps2 = np.cross(perps1, normals)
