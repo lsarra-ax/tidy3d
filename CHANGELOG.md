@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.8] - 2024-11-27
+
 ### Changed
 - `BatchData` is now a mapping and can be accessed and iterated over like a Python dictionary (`.keys()`, `.values()`, `.items()`).
 
@@ -1393,7 +1395,8 @@ which fields are to be projected is now determined automatically based on the me
 - Job and Batch classes for better simulation handling (eventually to fully replace webapi functions).
 - A large number of small improvements and bug fixes.
 
-[Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.7.7...develop
+[Unreleased]: https://github.com/flexcompute/tidy3d/compare/v2.7.8...develop
+[2.7.8]: https://github.com/flexcompute/tidy3d/compare/v2.7.6...v2.7.7
 [2.7.7]: https://github.com/flexcompute/tidy3d/compare/v2.7.6...v2.7.7
 [2.7.6]: https://github.com/flexcompute/tidy3d/compare/v2.7.5...v2.7.6
 [2.7.5]: https://github.com/flexcompute/tidy3d/compare/v2.7.4...v2.7.5
