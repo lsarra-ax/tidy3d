@@ -814,7 +814,7 @@ class TestCharge:
     # monitors
     @pytest.fixture(scope="class")
     def charge_global_mnt(self):
-        return td.ChargeSimulationMonitor(
+        return td.FreeCarrierMonitor(
             center=(0, 0, 0),
             size=(td.inf, td.inf, td.inf),
             name="charge_global_mnt",
@@ -822,23 +822,57 @@ class TestCharge:
         )
 
     @pytest.fixture(scope="class")
-    def devsim_settings(self):
-        return td.DevsimConvergenceSettings(relTol=1e5, absTol=1e3, maxIters=400, dV=1)
+    def potential_global_mnt(self):
+        return td.VoltageMonitor(
+            center=(0, 0, 0),
+            size=(td.inf, td.inf, td.inf),
+            name="potential_global_mnt",
+            unstructured=True,
+        )
+
+    @pytest.fixture(scope="class")
+    def capacitance_global_mnt(self):
+        return td.CapacitanceMonitor(
+            center=(0, 0, 0),
+            size=(td.inf, td.inf, td.inf),
+            name="capacitance_global_mnt",
+            unstructured=True,
+        )
+
+    # Charge settings
+    @pytest.fixture(scope="class")
+    def charge_tolerance(self):
+        return td.ChargeToleranceSpec(rel_tol=1e5, abs_tol=1e3, max_iters=400)
+
+    @pytest.fixture(scope="class")
+    def charge_dc_regime(self):
+        return td.DCSpec(dv=1)
 
     def test_charge_simulation(
-        self, oxide, p_side, n_side, charge_global_mnt, bc_n, bc_p, devsim_settings
+        self,
+        oxide,
+        p_side,
+        n_side,
+        charge_global_mnt,
+        potential_global_mnt,
+        capacitance_global_mnt,
+        bc_n,
+        bc_p,
+        charge_tolerance,
+        charge_dc_regime,
     ):
         """Make sure charge simulation produces the correct errors when needed."""
 
         sim = td.HeatChargeSimulation(
             structures=[oxide, p_side, n_side],
             medium=td.Medium(heat_spec=td.FluidSpec(), name="air"),
-            monitors=[charge_global_mnt],
+            monitors=[charge_global_mnt, potential_global_mnt, capacitance_global_mnt],
             center=(0, 0, 0),
             size=CHARGE_SIMULATION.sim_size,
             grid_spec=td.UniformUnstructuredGrid(dl=0.05),
             boundary_spec=[bc_n, bc_p],
-            devsim_settings=[devsim_settings],
+            charge_tolerance=charge_tolerance,
+            charge_regime=charge_dc_regime,
         )
 
         # at least one ChargeSimulationMonitor should be added

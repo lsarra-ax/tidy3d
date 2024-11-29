@@ -37,10 +37,11 @@ from .boundary import (
     TemperatureBC,
     VoltageBC,
 )
-from .devsim_settings import DevsimSettingsType
+from .charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
 from .grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
 from .monitor import (
-    ChargeSimulationMonitor,
+    CapacitanceMonitor,
+    FreeCarrierMonitor,
     HeatChargeMonitorType,
     TemperatureMonitor,
     VoltageMonitor,
@@ -75,7 +76,7 @@ class HeatChargeSimulationType(str, Enum):
 
     HEAT = "HEAT"
     CONDUCTION = "CONDUCTION"
-    DEVSIM = "DEVSIM"
+    CHARGE = "CHARGE"
 
 
 class HeatChargeSimulation(AbstractSimulation):
@@ -175,8 +176,15 @@ class HeatChargeSimulation(AbstractSimulation):
         "Each element can be ``0`` (symmetry off) or ``1`` (symmetry on).",
     )
 
-    devsim_settings: Optional[Tuple[DevsimSettingsType, ...]] = pd.Field(
-        None, title="Devsim setttings.", description="Some Devsim settings."
+    charge_tolerance: ChargeToleranceType = pd.Field(
+        ChargeToleranceSpec(), title="Charge setttings.", description="Some Charge settings."
+    )
+
+    charge_regime: Optional[ChargeRegimeType] = pd.Field(
+        None,
+        title="Charge regime.",
+        description="Determined the regime in a Charge simulation. Currently it "
+        "accpets DCSpec (for DC simulations) only.",
     )
 
     @pd.validator("structures", always=True)
@@ -372,9 +380,11 @@ class HeatChargeSimulation(AbstractSimulation):
     def check_charge_simulation(cls, values):
         """Makes sure that CHARGE simulations are set correctly."""
 
+        ChargeMonitorType = (VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor)
+
         simulation_types = cls._check_simulation_types(values=values)
 
-        if HeatChargeSimulationType.DEVSIM in simulation_types:
+        if HeatChargeSimulationType.CHARGE in simulation_types:
             # check that we have at least 2 'VoltageBC's
             boundary_spec = values["boundary_spec"]
             voltage_bcs = 0
@@ -389,9 +399,10 @@ class HeatChargeSimulation(AbstractSimulation):
 
             # check that we have at least one charge monitor
             monitors = values["monitors"]
-            if not any(isinstance(mnt, ChargeSimulationMonitor) for mnt in monitors):
+            if not any(isinstance(mnt, ChargeMonitorType) for mnt in monitors):
                 raise SetupError(
-                    "CHARGE simulations require the definition of, at least, one 'ChargeSimulationMonitor' "
+                    "CHARGE simulations require the definition of, at least, one of these monitors: "
+                    "'[VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor]' "
                     "but none have been defined."
                 )
 
@@ -523,7 +534,7 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _check_if_semiconductor_present(structures) -> bool:
-        """Checks whether the simulation object can run a Charge/DevSim simulation."""
+        """Checks whether the simulation object can run a Charge simulation."""
 
         charge_sim = False
 
@@ -557,16 +568,16 @@ class HeatChargeSimulation(AbstractSimulation):
             structures=structures
         )
         if semiconductor_present:
-            simulation_types.append(HeatChargeSimulationType.DEVSIM)
+            simulation_types.append(HeatChargeSimulationType.CHARGE)
 
         for boundary in boundaries:
             if isinstance(boundary.condition, HeatBCTypes):
                 simulation_types.append(HeatChargeSimulationType.HEAT)
             if isinstance(boundary.condition, ElectricBCTypes):
                 # for the time being, assume tha the simulation will be of
-                # type CHARGE/DEVSIM if we have semiconductors
+                # type CHARGE if we have semiconductors
                 if semiconductor_present:
-                    simulation_types.append(HeatChargeSimulationType.DEVSIM)
+                    simulation_types.append(HeatChargeSimulationType.CHARGE)
                 else:
                     simulation_types.append(HeatChargeSimulationType.CONDUCTION)
 
@@ -1320,9 +1331,9 @@ class HeatChargeSimulation(AbstractSimulation):
         simulation_types = []
 
         # NOTE: for the time being, if a simulation has SemiConductorSpec
-        # then we consider it of being a 'HeatChargeSimulationType.DEVSIM'
+        # then we consider it of being a 'HeatChargeSimulationType.CHARGE'
         if self._check_if_semiconductor_present(self.structures):
-            return [HeatChargeSimulationType.DEVSIM]
+            return [HeatChargeSimulationType.CHARGE]
 
         heat_source_present = any(isinstance(s, HeatSourceTypes) for s in self.sources)
 
