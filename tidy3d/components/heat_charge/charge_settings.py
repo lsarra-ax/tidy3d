@@ -50,7 +50,7 @@ class DCSpec(Tidy3dBaseModel):
     Example
     -------
     >>> import tidy3d as td
-    >>> dc_spec = td.DCSpec(dV=0.1)
+    >>> dc_spec = td.DCSpec(dv=0.1)
     """
 
     dv: Optional[pd.PositiveFloat] = pd.Field(
