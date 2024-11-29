@@ -177,14 +177,14 @@ class HeatChargeSimulation(AbstractSimulation):
     )
 
     charge_tolerance: ChargeToleranceType = pd.Field(
-        ChargeToleranceSpec(), title="Charge setttings.", description="Some Charge settings."
+        ChargeToleranceSpec(), title="Charge settings.", description="Some Charge settings."
     )
 
     charge_regime: Optional[ChargeRegimeType] = pd.Field(
         None,
         title="Charge regime.",
         description="Determined the regime in a Charge simulation. Currently it "
-        "accpets DCSpec (for DC simulations) only.",
+        "accepts DCSpec (for DC simulations) only.",
     )
 
     @pd.validator("structures", always=True)
