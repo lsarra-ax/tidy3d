@@ -513,6 +513,12 @@ class DataArray(xr.DataArray):
                 result = result.transpose(*out_dims)
         return result
 
+    def to_static(self, **kwargs):
+        if kwargs:
+            raise ValueError("no kwargs can be passed to DataArray.to_static()")
+        data_static = get_static(self.data)
+        return self.copy(deep=True, data=data_static)
+
 
 class FreqDataArray(DataArray):
     """Frequency-domain array.

@@ -5,14 +5,19 @@ from __future__ import annotations
 from abc import ABC
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
+import autograd.numpy as np
+import numpy as onp
 import pydantic.v1 as pydantic
+import trimesh
+from autograd.extend import defvjp, primitive
+from autograd.tracer import getval
 
 from ...constants import inf
 from ...exceptions import DataError, ValidationError
 from ...log import log
 from ...packaging import verify_packages_import
-from ..autograd.derivative_utils import AutogradFieldMap, DerivativeInfo, DerivativeSurfaceMesh
+from ..autograd.derivative_utils import DerivativeInfo, DerivativeSurfaceMesh
+from ..autograd.types import AutogradFieldMap
 from ..base import cached_property
 from ..data.data_array import DATA_ARRAY_MAP, TriangleMeshDataArray
 from ..data.dataset import TriangleMeshDataset
@@ -22,6 +27,30 @@ from ..viz import add_ax_if_none, equal_aspect
 from . import base
 
 AREA_SIZE_THRESHOLD = 1e-36
+
+
+@primitive
+def get_triangles(vertices, faces):
+    return trimesh.Trimesh(vertices, faces).triangles
+
+
+def get_triangles_vertices_vjp(_, vertices, faces):
+    def vjp(g):
+        grad_vertices = np.zeros_like(vertices)
+        indices = faces.astype(int).flatten()
+        onp.add.at(grad_vertices, indices, g.reshape(-1, 3))
+        return grad_vertices
+
+    return vjp
+
+
+defvjp(get_triangles, get_triangles_vertices_vjp)
+
+
+# vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="f8")
+# faces = np.array([[1, 2, 3], [0, 3, 2], [0, 1, 3], [0, 2, 1]], dtype="f8")
+
+# check_grads(get_triangles, modes=["rev"], order=1)(vertices, faces)
 
 
 class TriangleMesh(base.Geometry, ABC):
@@ -61,12 +90,15 @@ class TriangleMesh(base.Geometry, ABC):
     @verify_packages_import(["trimesh"])
     def _check_mesh(cls, val: TriangleMeshDataset) -> TriangleMeshDataset:
         """Check that the mesh is valid."""
+
         if val is None:
             return None
 
         import trimesh
 
-        mesh = cls._triangles_to_trimesh(val.surface_mesh)
+        surface_mesh_static = val.surface_mesh.to_static()
+
+        mesh = cls._triangles_to_trimesh(surface_mesh_static)
         if not all(np.array(mesh.area_faces) > AREA_SIZE_THRESHOLD):
             old_tol = trimesh.tol.merge
             trimesh.tol.merge = np.sqrt(2 * AREA_SIZE_THRESHOLD)
@@ -123,7 +155,7 @@ class TriangleMesh(base.Geometry, ABC):
         """Try to fix winding in the mesh."""
         import trimesh
 
-        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh)
+        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh.to_static())
         trimesh.repair.fix_winding(mesh)
         return TriangleMesh.from_trimesh(mesh)
 
@@ -132,7 +164,7 @@ class TriangleMesh(base.Geometry, ABC):
         """Try to fill holes in the mesh. Can be used to repair non-watertight meshes."""
         import trimesh
 
-        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh)
+        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh.to_static())
         trimesh.repair.fill_holes(mesh)
         return TriangleMesh.from_trimesh(mesh)
 
@@ -141,7 +173,7 @@ class TriangleMesh(base.Geometry, ABC):
         """Try to fix normals to be consistent and outward-facing."""
         import trimesh
 
-        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh)
+        mesh = TriangleMesh._triangles_to_trimesh(self.mesh_dataset.surface_mesh.to_static())
         trimesh.repair.fix_normals(mesh)
         return TriangleMesh.from_trimesh(mesh)
 
@@ -287,7 +319,6 @@ class TriangleMesh(base.Geometry, ABC):
             The custom surface mesh geometry given by the vertices and faces provided.
 
         """
-        import trimesh
 
         vertices = np.array(vertices)
         faces = np.array(faces)
@@ -297,7 +328,7 @@ class TriangleMesh(base.Geometry, ABC):
             )
         if len(faces.shape) != 2 or faces.shape[1] != 3:
             raise ValidationError(f"Provided 'faces' must be an M x 3 array, given {faces.shape}.")
-        return cls.from_triangles(trimesh.Trimesh(vertices, faces).triangles)
+        return cls.from_triangles(vertices[faces])
 
     @classmethod
     @verify_packages_import(["trimesh"])
@@ -307,7 +338,8 @@ class TriangleMesh(base.Geometry, ABC):
         """Convert an (N, 3, 3) numpy array of triangles to a ``trimesh.Trimesh``."""
         import trimesh
 
-        return trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+        kwargs = trimesh.triangles.to_kwargs(triangles)
+        return trimesh.Trimesh(**kwargs)
 
     @cached_property
     @verify_packages_import(["trimesh"])
@@ -315,7 +347,7 @@ class TriangleMesh(base.Geometry, ABC):
         self,
     ):  # -> TrimeshType: We need to get this out of the classes and into functional methods operating on a class (maybe still referenced to the class)
         """A ``trimesh.Trimesh`` object representing the custom surface mesh geometry."""
-        return self._triangles_to_trimesh(self.triangles)
+        return self._triangles_to_trimesh(getval(self.triangles))
 
     @cached_property
     def triangles(self) -> np.ndarray:

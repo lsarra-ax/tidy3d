@@ -35,7 +35,7 @@ from .data.data_array import FreqDataArray
 from .data.dataset import CustomSpatialDataType, Dataset
 from .geometry.base import Box, Geometry
 from .geometry.mesh import TriangleMesh
-from .geometry.utils import flatten_groups, traverse_geometries
+from .geometry.utils import traverse_geometries
 from .geometry.utils_2d import get_bounds, get_thickened_geom, snap_coordinate_to_grid, subdivide
 from .grid.grid import Coords, Coords1D, Grid
 from .grid.grid_spec import AutoGrid, GridSpec, UniformGrid
@@ -46,8 +46,8 @@ from .medium import (
     AbstractPerturbationMedium,
     AnisotropicMedium,
     FullyAnisotropicMedium,
-    LossyMetalMedium,
     KerrNonlinearity,
+    LossyMetalMedium,
     Medium,
     Medium2D,
     MediumType,
@@ -2607,29 +2607,29 @@ class Simulation(AbstractYeeGridSimulation):
 
         return val
 
-    @pydantic.validator("structures", always=True)
-    def _validate_2d_geometry_has_2d_medium(cls, val, values):
-        """Warn if a geometry bounding box has zero size in a certain dimension."""
+    # @pydantic.validator("structures", always=True)
+    # def _validate_2d_geometry_has_2d_medium(cls, val, values):
+    #     """Warn if a geometry bounding box has zero size in a certain dimension."""
 
-        if val is None:
-            return val
+    #     if val is None:
+    #         return val
 
-        with log as consolidated_logger:
-            for i, structure in enumerate(val):
-                if isinstance(structure.medium, Medium2D):
-                    continue
-                for geom in flatten_groups(structure.geometry):
-                    zero_dims = geom.zero_dims
-                    if len(zero_dims) > 0:
-                        consolidated_logger.warning(
-                            f"Structure at 'structures[{i}]' has geometry with zero size along "
-                            f"dimensions {zero_dims}, and with a medium that is not a 'Medium2D'. "
-                            "This is probably not correct, since the resulting simulation will "
-                            "depend on the details of the numerical grid. Consider either "
-                            "giving the geometry a nonzero thickness or using a 'Medium2D'."
-                        )
+    #     with log as consolidated_logger:
+    #         for i, structure in enumerate(val):
+    #             if isinstance(structure.medium, Medium2D):
+    #                 continue
+    #             for geom in flatten_groups(structure.geometry):
+    #                 zero_dims = geom.zero_dims
+    #                 if len(zero_dims) > 0:
+    #                     consolidated_logger.warning(
+    #                         f"Structure at 'structures[{i}]' has geometry with zero size along "
+    #                         f"dimensions {zero_dims}, and with a medium that is not a 'Medium2D'. "
+    #                         "This is probably not correct, since the resulting simulation will "
+    #                         "depend on the details of the numerical grid. Consider either "
+    #                         "giving the geometry a nonzero thickness or using a 'Medium2D'."
+    #                     )
 
-        return val
+    #     return val
 
     @pydantic.validator("structures", always=True)
     def _validate_incompatible_material_intersections(cls, val, values):
