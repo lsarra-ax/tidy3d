@@ -2620,7 +2620,7 @@ class Simulation(AbstractYeeGridSimulation):
 
             if any(isinstance(mnt, TimeMonitor) for mnt in values["monitors"]):
                 raise SetupError("Time monitors cannot be used in fixed-angle simulations.")
-                
+
         return values
 
     @pydantic.validator("boundary_spec", always=True)
@@ -3942,12 +3942,12 @@ class Simulation(AbstractYeeGridSimulation):
     def _fixed_angle_sources(self):
         """List of plane wave sources with ``FixedAngleSpec``."""
         return self._get_fixed_angle_sources(self.sources)
-    
+
     @cached_property
     def _is_fixed_angle(self):
         """List of plane wave sources with ``FixedAngleSpec``."""
         return len(self._fixed_angle_sources) > 0
-    
+
     # candidate for removal in 3.0
     @staticmethod
     def intersecting_media(
