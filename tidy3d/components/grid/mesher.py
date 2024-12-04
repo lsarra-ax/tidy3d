@@ -19,7 +19,7 @@ from ...log import log
 from ..base import Tidy3dBaseModel
 from ..medium import AnisotropicMedium, LossyMetalMedium, Medium2D, PECMedium
 from ..structure import MeshOverrideStructure, Structure, StructureType
-from ..types import ArrayFloat1D, Axis, Bound, Coordinate
+from ..types import ArrayFloat1D, Axis, Bound, CoordinateOptional
 
 _ROOTS_TOL = 1e-10
 
@@ -50,7 +50,7 @@ class Mesher(Tidy3dBaseModel, ABC):
         axis: Axis,
         interval_coords: ArrayFloat1D,
         max_dl_list: ArrayFloat1D,
-        snapping_points: List[Coordinate],
+        snapping_points: List[CoordinateOptional],
     ) -> Tuple[ArrayFloat1D, ArrayFloat1D]:
         """Insert snapping_points to the intervals."""
 
@@ -80,7 +80,7 @@ class GradedMesher(Mesher):
         axis: Axis,
         interval_coords: ArrayFloat1D,
         max_dl_list: ArrayFloat1D,
-        snapping_points: List[Coordinate],
+        snapping_points: List[CoordinateOptional],
     ) -> Tuple[ArrayFloat1D, ArrayFloat1D]:
         """Insert snapping_points to the intervals.
 
@@ -94,7 +94,7 @@ class GradedMesher(Mesher):
             Coordinate of interval boundaries.
         max_dl_list : ArrayFloat1D
             Maximal allowed step size of each interval generated from `parse_structures`.
-        snapping_points : List[Coordinate]
+        snapping_points : List[CoordinateOptional]
             A set of points that enforce grid boundaries to pass through them.
 
         Returns
@@ -123,6 +123,8 @@ class GradedMesher(Mesher):
 
         for point in snapping_points:
             new_coord = point[axis]
+            if new_coord is None:
+                continue
             # Skip if the point is outside the domain
             if new_coord >= interval_coords[-1] or new_coord <= interval_coords[0]:
                 continue
