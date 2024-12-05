@@ -16,38 +16,6 @@ from tidy3d.components.viz import PlotParams
 from tidy3d.components.tcad.viz import plot_params_heat_source
 
 
-class AbstractHeatChargeSource(AbstractSource, ABC):
-    """Abstract source for heat-charge simulations. All source types
-    for 'HeatChargeSimulation' derive from this class."""
-
-    @cached_property
-    def plot_params(self) -> PlotParams:
-        """Default parameters for plotting a Source object."""
-        return plot_params_heat_source
-
-
-class StructureBasedHeatChargeSource(AbstractHeatChargeSource):
-    """Abstract class associated with structures. Sources associated
-    to structures must derive from this class"""
-
-    structures: Tuple[str, ...] = pd.Field(
-        title="Target Structures",
-        description="Names of structures where to apply heat source.",
-    )
-
-    @pd.validator("structures", always=True)
-    def check_non_empty_structures(cls, val):
-        """Error if source doesn't point at any structures."""
-        if len(val) == 0:
-            raise SetupError("List of structures for heat source is empty.")
-
-        return val
-
-
-class GlobalHeatChargeSource(AbstractHeatChargeSource):
-    """Abstract heat/charge source applied to all structures in the simulation"""
-
-
 class HeatSource(StructureBasedHeatChargeSource):
     """Adds a volumetric heat source (heat sink if negative values
     are provided) to specific structures in the scene.
@@ -63,18 +31,6 @@ class HeatSource(StructureBasedHeatChargeSource):
         f"{VOLUMETRIC_HEAT_RATE}.",
         units=VOLUMETRIC_HEAT_RATE,
     )
-
-
-class HeatFromElectricSource(GlobalHeatChargeSource):
-    """Volumetric heat source generated from an electric simulation.
-    If a `HeatFromElectricSource` is specified as a source, appropriate boundary
-    conditions for an electric simulation must be provided, since such a simulation
-    will be executed before the heat simulation can run.
-
-    Example
-    -------
-    >>> heat_source = HeatFromElectricSource()
-    """
 
 
 class UniformHeatSource(HeatSource):
@@ -97,5 +53,3 @@ class UniformHeatSource(HeatSource):
         )
         return values
 
-
-HeatChargeSourceType = Union[HeatSource, HeatFromElectricSource, UniformHeatSource]
