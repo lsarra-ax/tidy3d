@@ -1,18 +1,17 @@
 """Abstract bases for classes that define how data is recorded from simulation."""
 
 from abc import ABC, abstractmethod
-from typing import Tuple
 
 import numpy as np
 import pydantic.v1 as pd
 
-from ..base import cached_property
+from ..base import Tidy3dBaseModel, cached_property
 from ..geometry.base import Box
-from ..types import ArrayFloat1D, Axis, Numpy
+from ..types import ArrayFloat1D, Axis, Numpy, Tuple
 from ..viz import PlotParams, plot_params_monitor
 
 
-class AbstractMonitor(Box, ABC):
+class AbstractMonitor(Tidy3dBaseModel, ABC):
     """Abstract base class for steady-state monitors."""
 
     name: str = pd.Field(
@@ -27,7 +26,7 @@ class AbstractMonitor(Box, ABC):
         """Default parameters for plotting a Monitor object."""
         return plot_params_monitor
 
-    @cached_property
+    @abstractmethod
     def geometry(self) -> Box:
         """:class:`Box` representation of monitor.
 
@@ -36,7 +35,6 @@ class AbstractMonitor(Box, ABC):
         :class:`Box`
             Representation of the monitor geometry as a :class:`Box`.
         """
-        return Box(center=self.center, size=self.size)
 
     @abstractmethod
     def storage_size(self, num_cells: int, tmesh: ArrayFloat1D) -> int:
@@ -90,3 +88,18 @@ class AbstractMonitor(Box, ABC):
         """
         arrs = [np.arange(ncells) for ncells in num_cells]
         return tuple((self.downsample(arr, axis=dim).size for dim, arr in enumerate(arrs)))
+
+
+class BoxMonitor(Box, AbstractMonitor):
+    """Monitor with a geometry directly defined by a :class:`Box`."""
+
+    @cached_property
+    def geometry(self) -> Box:
+        """:class:`Box` representation of monitor.
+
+        Returns
+        -------
+        :class:`Box`
+            Representation of the monitor geometry as a :class:`Box`.
+        """
+        return Box(center=self.center, size=self.size)

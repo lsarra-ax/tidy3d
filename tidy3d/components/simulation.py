@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Annotated, Dict, List, Optional, Set, Tuple, Union
 
 import autograd.numpy as np
 import matplotlib as mpl
@@ -67,6 +67,9 @@ from .monitor import (
     PermittivityMonitor,
     SurfaceIntegrationMonitor,
     TimeMonitor,
+)
+from .rf_monitor import (
+    RFMonitorType,
 )
 from .run_time_spec import RunTimeSpec
 from .scene import MAX_NUM_MEDIUMS, Scene
@@ -141,6 +144,11 @@ NUM_STRUCTURES_WARN_EPSILON = 10_000
 
 # height of the PML plotting boxes along any dimensions where sim.size[dim] == 0
 PML_HEIGHT_FOR_0_DIMS = inf
+
+YeeMonitorType = Annotated[
+    Union[MonitorType, RFMonitorType],
+    pydantic.Field(discriminator=TYPE_TAG_STR),
+]
 
 
 class AbstractYeeGridSimulation(AbstractSimulation, ABC):
@@ -1397,7 +1405,7 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
         grid_spec: Union[GridSpec, Literal["identical"]] = None,
         symmetry: Tuple[Symmetry, Symmetry, Symmetry] = None,
         sources: Tuple[SourceType, ...] = None,
-        monitors: Tuple[MonitorType, ...] = None,
+        monitors: Tuple[YeeMonitorType, ...] = None,
         remove_outside_structures: bool = True,
         remove_outside_custom_mediums: bool = False,
         include_pml_cells: bool = False,
@@ -1426,7 +1434,7 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
         sources : Tuple[SourceType, ...] = None
             New list of sources. If ``None``, then the sources intersecting the new simulation
             domain are inherited from the original simulation.
-        monitors : Tuple[MonitorType, ...] = None
+        monitors : Tuple[YeeMonitorType, ...] = None
             New list of monitors. If ``None``, then the monitors intersecting the new simulation
             domain are inherited from the original simulation.
         remove_outside_structures : bool = True
@@ -2117,7 +2125,7 @@ class Simulation(AbstractYeeGridSimulation):
     data. If ``None``, the raw field data is returned. If ``None``, the raw field data is returned unnormalized.
     """
 
-    monitors: Tuple[annotate_type(MonitorType), ...] = pydantic.Field(
+    monitors: Tuple[YeeMonitorType, ...] = pydantic.Field(
         (),
         title="Monitors",
         description="Tuple of monitors in the simulation. "
@@ -3914,7 +3922,7 @@ class Simulation(AbstractYeeGridSimulation):
         )
         return Scene.intersecting_structures(test_object=test_object, structures=structures)
 
-    def monitor_medium(self, monitor: MonitorType):
+    def monitor_medium(self, monitor: YeeMonitorType):
         """Return the medium in which the given monitor resides.
 
         Parameters

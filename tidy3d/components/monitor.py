@@ -11,7 +11,7 @@ from ..exceptions import SetupError, ValidationError
 from ..log import log
 from .apodization import ApodizationSpec
 from .base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
-from .base_sim.monitor import AbstractMonitor
+from .base_sim.monitor import AbstractMonitor, BoxMonitor
 from .medium import MediumType
 from .mode import ModeSpec
 from .types import (
@@ -44,7 +44,7 @@ WARN_NUM_MODES = 100
 WINDOW_FACTOR = 15
 
 
-class Monitor(AbstractMonitor):
+class Monitor(BoxMonitor):
     """Abstract base class for monitors."""
 
     interval_space: Tuple[Literal[1], Literal[1], Literal[1]] = pydantic.Field(
@@ -79,7 +79,7 @@ class Monitor(AbstractMonitor):
         return self.storage_size(num_cells=num_cells, tmesh=tmesh)
 
 
-class FreqMonitor(Monitor, ABC):
+class FreqMonitor(AbstractMonitor):
     """:class:`Monitor` that records data in the frequency-domain."""
 
     freqs: FreqArray = pydantic.Field(
@@ -127,7 +127,7 @@ class FreqMonitor(Monitor, ABC):
         return (min(self.freqs), max(self.freqs))
 
 
-class TimeMonitor(Monitor, ABC):
+class TimeMonitor(AbstractMonitor):
     """:class:`Monitor` that records data in the time-domain."""
 
     start: pydantic.NonNegativeFloat = pydantic.Field(
@@ -457,7 +457,7 @@ class FieldTimeMonitor(AbstractFieldMonitor, TimeMonitor):
         return BYTES_REAL * num_steps * num_cells * len(self.fields)
 
 
-class PermittivityMonitor(FreqMonitor):
+class PermittivityMonitor(Monitor, FreqMonitor):
     """:class:`Monitor` that records the diagonal components of the complex-valued relative
     permittivity tensor in the frequency domain. The recorded data has the same shape as a
     :class:`.FieldMonitor` of the same geometry: the permittivity values are saved at the

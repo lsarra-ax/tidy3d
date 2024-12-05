@@ -7,14 +7,14 @@ from typing import Literal, Optional, Tuple, Union
 
 import pydantic.v1 as pd
 
-from ..base_sim.monitor import AbstractMonitor
+from ..base_sim.monitor import BoxMonitor
 from ..monitor import AbstractFieldMonitor, ModeSolverMonitor
 from ..types import FreqArray
 
 BYTES_COMPLEX = 8
 
 
-class EMEMonitor(AbstractMonitor, ABC):
+class EMEMonitor(BoxMonitor, ABC):
     """Abstract EME monitor."""
 
     freqs: Optional[FreqArray] = pd.Field(

@@ -19,11 +19,13 @@ from xarray.core.utils import OrderedSet, either_dict_or_kwargs
 from xarray.core.variable import as_variable
 
 from ...constants import (
+    AMP,
     HERTZ,
     MICROMETER,
     PICOSECOND_PER_NANOMETER_PER_KILOMETER,
     RADIAN,
     SECOND,
+    VOLT,
     WATT,
 )
 from ...exceptions import DataError, FileError
@@ -1252,6 +1254,78 @@ class IndexedDataArray(DataArray):
     _dims = ("index",)
 
 
+class VoltageDataArray(DataArray):
+    """Voltage data array.
+
+    Example
+    -------
+    >>> f = [2e14, 3e14]
+    >>> coords = dict(f=f)
+    >>> data = VoltageDataArray((1+1j) * np.random.random((2,)), coords=coords)
+    """
+
+    __slots__ = ()
+    _dims = "f"
+    _data_attrs = {
+        "long_name": "Voltage",
+        "units": VOLT,
+    }
+
+
+class CurrentDataArray(DataArray):
+    """Current data array.
+
+    Example
+    -------
+    >>> f = [2e14, 3e14]
+    >>> coords = dict(f=f)
+    >>> data = CurrentDataArray((1+1j) * np.random.random((2,)), coords=coords)
+    """
+
+    __slots__ = ()
+    _dims = "f"
+    _data_attrs = {
+        "long_name": "Current",
+        "units": AMP,
+    }
+
+
+class VoltageTimeDataArray(DataArray):
+    """Voltage data array in the time-domain.
+
+    Example
+    -------
+    >>> t = [0, 1e-12, 2e-12]
+    >>> coords = dict(t=t)
+    >>> data = VoltageTimeDataArray((1+1j) * np.random.random((2,)), coords=coords)
+    """
+
+    __slots__ = ()
+    _dims = "t"
+    _data_attrs = {
+        "long_name": "Voltage",
+        "units": VOLT,
+    }
+
+
+class CurrentTimeDataArray(DataArray):
+    """Current data array in the time-domain..
+
+    Example
+    -------
+    >>> t = [0, 1e-12, 2e-12]
+    >>> coords = dict(t=t)
+    >>> data = CurrentTimeDataArray((1+1j) * np.random.random((2,)), coords=coords)
+    """
+
+    __slots__ = ()
+    _dims = "t"
+    _data_attrs = {
+        "long_name": "Current",
+        "units": AMP,
+    }
+
+
 DATA_ARRAY_TYPES = [
     SpatialDataArray,
     ScalarFieldDataArray,
@@ -1285,5 +1359,9 @@ DATA_ARRAY_TYPES = [
     PointDataArray,
     CellDataArray,
     IndexedDataArray,
+    VoltageDataArray,
+    CurrentDataArray,
+    VoltageTimeDataArray,
+    CurrentTimeDataArray,
 ]
 DATA_ARRAY_MAP = {data_array.__name__: data_array for data_array in DATA_ARRAY_TYPES}

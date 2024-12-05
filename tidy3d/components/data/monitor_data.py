@@ -35,6 +35,12 @@ from ..monitor import (
     MonitorType,
     PermittivityMonitor,
 )
+from ..rf_monitor import (
+    CurrentMonitor,
+    CurrentTimeMonitor,
+    VoltageMonitor,
+    VoltageTimeMonitor,
+)
 from ..source import (
     CustomCurrentSource,
     CustomFieldSource,
@@ -59,6 +65,8 @@ from ..types import (
 from ..validators import enforce_monitor_fields_present, required_if_symmetry_present
 from .data_array import (
     AxialRatioDataArray,
+    CurrentDataArray,
+    CurrentTimeDataArray,
     DataArray,
     DiffractionDataArray,
     DirectivityDataArray,
@@ -77,6 +85,8 @@ from .data_array import (
     ScalarFieldDataArray,
     ScalarFieldTimeDataArray,
     TimeDataArray,
+    VoltageDataArray,
+    VoltageTimeDataArray,
 )
 from .dataset import (
     AbstractFieldDataset,
@@ -3054,7 +3064,121 @@ class DiffractionData(AbstractFieldProjectionData):
         return adj_src
 
 
+class VoltageData(MonitorData):
+    """
+    Data associated with a :class:`.VoltageMonitor`.
+
+    Example
+    -------
+    >>> f = np.linspace(1e14, 2e14, 10)
+    >>> coords = dict(f=f)
+    >>> values = np.random.random((len(f),))
+    >>> voltage = VoltageDataArray(values, coords=coords)
+    >>> monitor = VoltageMonitor(center=(1,2,3), size=(2,2,2), freqs=f, name='n2f_monitor')
+    >>> data = VoltageData(monitor=monitor, voltage=voltage)
+    """
+
+    monitor: VoltageMonitor = pd.Field(
+        ...,
+        title="Monitor",
+        description="Frequency-domain voltage monitor associated with the data.",
+    )
+
+    voltage: VoltageDataArray = pd.Field(
+        ..., title="Voltage", description="Voltage in the frequency domain."
+    )
+
+    def normalize(self, source_spectrum_fn: Callable[[float], complex]) -> FieldDataset:
+        """Return copy of self after normalization is applied using source spectrum function."""
+        src_amps = source_spectrum_fn(self.voltage.f)
+        voltage_norm = (self.voltage / src_amps).astype(self.voltage.dtype)
+        return self.copy(update=dict(voltage=voltage_norm))
+
+
+class VoltageTimeData(MonitorData):
+    """
+    Data associated with a :class:`.VoltageTimeMonitor`.
+
+    Example
+    -------
+    >>> t = [0, 1e-12, 2e-12]
+    >>> coords = dict(t=t)
+    >>> values = np.random.random((len(t),))
+    >>> voltage = VoltageTimeDataArray(values, coords=coords)
+    >>> monitor = VoltageTimeMonitor(center=(1,2,3), size=(2,2,2),  name='voltage_monitor')
+    >>> data = VoltageTimeData(monitor=monitor, voltage=voltage)
+    """
+
+    monitor: VoltageTimeMonitor = pd.Field(
+        ...,
+        title="Monitor",
+        description="Time-domain voltage monitor associated with the data.",
+    )
+
+    voltage: VoltageTimeDataArray = pd.Field(
+        ..., title="Voltage", description="Voltage in the time-domain."
+    )
+
+
+class CurrentData(MonitorData):
+    """
+    Data associated with a :class:`.CurrentMonitor`.
+
+    Example
+    -------
+    >>> f = np.linspace(1e14, 2e14, 10)
+    >>> coords = dict(f=f)
+    >>> values = np.random.random((len(f),))
+    >>> current = CurrentDataArray(values, coords=coords)
+    >>> monitor = CurrentMonitor(center=(1,2,3), size=(2,2,2), freqs=f, name='n2f_monitor')
+    >>> data = CurrentData(monitor=monitor, current=current)
+    """
+
+    monitor: CurrentMonitor = pd.Field(
+        ...,
+        title="Monitor",
+        description="Frequency-domain current monitor associated with the data.",
+    )
+
+    current: CurrentDataArray = pd.Field(
+        ..., title="Current", description="Current in the frequency domain."
+    )
+
+    def normalize(self, source_spectrum_fn: Callable[[float], complex]) -> FieldDataset:
+        """Return copy of self after normalization is applied using source spectrum function."""
+        src_amps = source_spectrum_fn(self.current.f)
+        current_norm = (self.current / src_amps).astype(self.current.dtype)
+        return self.copy(update=dict(current=current_norm))
+
+
+class CurrentTimeData(MonitorData):
+    """
+    Data associated with a :class:`.CurrentTimeMonitor`.
+
+    Example
+    -------
+    >>> t = [0, 1e-12, 2e-12]
+    >>> coords = dict(t=t)
+    >>> values = np.random.random((len(t),))
+    >>> current = CurrentTimeDataArray(values, coords=coords)
+    >>> monitor = CurrentTimeMonitor(center=(1,2,3), size=(2,2,2),  name='current_monitor')
+    >>> data = CurrentTimeData(monitor=monitor, current=current)
+    """
+
+    monitor: CurrentTimeMonitor = pd.Field(
+        ...,
+        title="Monitor",
+        description="Time-domain current monitor associated with the data.",
+    )
+
+    current: CurrentTimeDataArray = pd.Field(
+        ..., title="Current", description="Current in the time-domain."
+    )
+
+
 MonitorDataTypes = (
+    CurrentData,
+    CurrentTimeData,
     FieldData,
     FieldTimeData,
     PermittivityData,
@@ -3067,6 +3191,8 @@ MonitorDataTypes = (
     FieldProjectionAngleData,
     DiffractionData,
     DirectivityData,
+    VoltageData,
+    VoltageTimeData,
 )
 
 MonitorDataType = Union[MonitorDataTypes]
