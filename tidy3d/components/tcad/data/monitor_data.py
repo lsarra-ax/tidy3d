@@ -9,14 +9,14 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import pydantic.v1 as pd
 
-from ...constants import KELVIN, VOLT
-from ...log import log
-from ..base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
-from ..base_sim.data.monitor_data import AbstractMonitorData
-from ..data.data_array import DCCapacitanceDataArray, SpatialDataArray
-from ..data.dataset import IndexedDataArray, TetrahedralGridDataset, TriangularGridDataset
-from ..types import Coordinate, ScalarSymmetry, annotate_type
-from .monitor import (
+from tidy3d.constants import KELVIN, VOLT
+from tidy3d.log import log
+from tidy3d.components.base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
+from tidy3d.components.base_sim.data.monitor_data import AbstractMonitorData
+from tidy3d.components.data.data_array import DCCapacitanceDataArray, SpatialDataArray
+from tidy3d.components.data.dataset import IndexedDataArray, TetrahedralGridDataset, TriangularGridDataset
+from tidy3d.components.types import Coordinate, ScalarSymmetry, annotate_type
+from tidy3d.components.tcad.monitors.monitor import (
     CapacitanceMonitor,
     FreeCarrierMonitor,
     HeatChargeMonitorType,

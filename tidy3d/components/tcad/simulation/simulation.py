@@ -7,10 +7,10 @@ from typing import Tuple
 
 import pydantic.v1 as pd
 
-from ....log import log
-from ...types import Ax
-from ...viz import add_ax_if_none, equal_aspect
-from ..simulation import HeatChargeSimulation
+from tidy3d.log import log
+from tidy3d.components.types import Ax
+from tidy3d.components.viz import add_ax_if_none, equal_aspect
+from tidy3d.components.heat_charge.simulation import HeatChargeSimulation
 
 
 class HeatSimulation(HeatChargeSimulation):

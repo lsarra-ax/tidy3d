@@ -59,7 +59,7 @@ from .dispersion_fitter import (
 )
 from .geometry.base import Geometry
 from .grid.grid import Coords, Grid
-from .heat_charge_spec import ElectricSpecType, ThermalSpecType
+from tidy3d.components.electronic.heat_charge_spec import ElectricSpecType, ThermalSpecType
 from .parameter_perturbation import (
     IndexPerturbation,
     ParameterPerturbation,

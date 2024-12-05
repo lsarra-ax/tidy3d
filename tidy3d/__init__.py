@@ -134,7 +134,7 @@ from .components.grid.grid_spec import (
     GridSpec,
     UniformGrid,
 )
-from .components.heat_charge.boundary import (
+from tidy3d.components.tcad.boundary.boundary import (
     ConvectionBC,
     CurrentBC,
     HeatBoundarySpec,
@@ -144,7 +144,7 @@ from .components.heat_charge.boundary import (
     TemperatureBC,
     VoltageBC,
 )
-from .components.heat_charge.charge_settings import (
+from tidy3d.components.tcad.simulation.charge_settings import (
     AugerRecombination,
     CaugheyThomasMobility,
     ChargeToleranceSpec,
@@ -153,34 +153,26 @@ from .components.heat_charge.charge_settings import (
     SlotboomNarrowingModel,
     SRHRecombination,
 )
-from .components.heat_charge.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid
-from .components.heat_charge.heat.simulation import HeatSimulation
-from .components.heat_charge.monitor import (
+from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid
+from tidy3d.components.tcad.simulation.simulation import HeatSimulation
+from tidy3d.components.tcad.monitors.monitor import (
     CapacitanceMonitor,
     FreeCarrierMonitor,
     TemperatureMonitor,
     VoltageMonitor,
 )
-from .components.heat_charge.monitor_data import (
+from tidy3d.components.tcad.data.monitor_data import (
     CapacitanceData,
     FreeCarrierData,
     PotentialData,
     TemperatureData,
     VoltageData,
 )
-from .components.heat_charge.sim_data import HeatChargeSimulationData, HeatSimulationData
-from .components.heat_charge.simulation import HeatChargeSimulation
-from .components.heat_charge.source import HeatFromElectricSource, HeatSource, UniformHeatSource
+from tidy3d.components.tcad.data.sim_data import HeatChargeSimulationData, HeatSimulationData
+from tidy3d.components.tcad.source.source import HeatFromElectricSource, HeatSource, UniformHeatSource
 
 # heat
 # heat
-from .components.heat_charge_spec import (
-    ConductorSpec,
-    FluidSpec,
-    InsulatorSpec,
-    SemiConductorSpec,
-    SolidSpec,
-)
 
 # lumped elements
 from .components.lumped_element import (

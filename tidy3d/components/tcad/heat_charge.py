@@ -7,16 +7,16 @@ from typing import Tuple
 
 import pydantic.v1 as pd
 
-from ..constants import (
+from tidy3d.constants import (
     CONDUCTIVITY,
     ELECTRON_VOLT,
     PERMITTIVITY,
     SPECIFIC_HEAT_CAPACITY,
     THERMAL_CONDUCTIVITY,
 )
-from .base import Tidy3dBaseModel
-from .data.data_array import SpatialDataArray
-from .heat_charge.charge_settings import (
+from tidy3d.base import Tidy3dBaseModel
+from tidy3d.data.data_array import SpatialDataArray
+from tidy3d.heat_charge.charge_settings import (
     AugerRecombination,
     BandgapNarrowingModelType,
     CaugheyThomasMobility,
@@ -26,7 +26,7 @@ from .heat_charge.charge_settings import (
     SlotboomNarrowingModel,
     SRHRecombination,
 )
-from .types import Union
+from tidy3d.types import Union
 
 
 # Liquid class
@@ -112,7 +112,7 @@ class SemiConductorSpec(ConductorSpec):
     This class is used to define semiconductors.
 
     Notes
-    -----
+    -/home/daquintero/phd/simulation_papers/single_photon_multiplexer_codesign----
         Both acceptors and donors can be either a positive number or an 'xarray.DataArray'.
         Default values for parameters and models are those appropriate for Silicon
     """

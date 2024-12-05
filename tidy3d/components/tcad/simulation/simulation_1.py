@@ -9,25 +9,25 @@ import numpy as np
 import pydantic.v1 as pd
 from matplotlib import colormaps
 
-from ...constants import VOLUMETRIC_HEAT_RATE, inf
-from ...exceptions import SetupError
-from ...log import log
-from ..base import skip_if_fields_missing
-from ..base_sim.simulation import AbstractSimulation
-from ..bc_placement import (
+from tidy3d.constants import VOLUMETRIC_HEAT_RATE, inf
+from tidy3d.exceptions import SetupError
+from tidy3d.log import log
+from tidy3d.components.base import skip_if_fields_missing
+from tidy3d.components.base_sim.simulation import AbstractSimulation
+from tidy3d.components.bc_placement import (
     MediumMediumInterface,
     SimulationBoundary,
     StructureBoundary,
     StructureSimulationBoundary,
     StructureStructureInterface,
 )
-from ..geometry.base import Box
-from ..heat_charge_spec import ConductorSpec, SemiConductorSpec, SolidSpec
-from ..scene import Scene
-from ..structure import Structure
-from ..types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
-from ..viz import PlotParams, add_ax_if_none, equal_aspect
-from .boundary import (
+from tidy3d.components.geometry.base import Box
+from tidy3d.components.electronic.heat_charge_spec import ConductorSpec, SemiConductorSpec, SolidSpec
+from tidy3d.components.scene import Scene
+from tidy3d.components.structure import Structure
+from tidy3d.components.types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
+from tidy3d.components.viz import PlotParams, add_ax_if_none, equal_aspect
+from tidy3d.components.tcad.boundary.boundary import (
     ConvectionBC,
     CurrentBC,
     HeatBoundarySpec,
@@ -37,23 +37,23 @@ from .boundary import (
     TemperatureBC,
     VoltageBC,
 )
-from .charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
-from .grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
-from .monitor import (
+from tidy3d.components.tcad.simulation.charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
+from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
+from tidy3d.components.tcad.monitors.monitor import (
     CapacitanceMonitor,
     FreeCarrierMonitor,
     HeatChargeMonitorType,
     TemperatureMonitor,
     VoltageMonitor,
 )
-from .source import (
+from tidy3d.components.tcad.source.source import (
     GlobalHeatChargeSource,
     HeatChargeSourceType,
     HeatFromElectricSource,
     HeatSource,
     UniformHeatSource,
 )
-from .viz import (
+from tidy3d.components.tcad.viz import (
     CHARGE_BC_INSULATOR,
     HEAT_BC_COLOR_CONVECTION,
     HEAT_BC_COLOR_FLUX,

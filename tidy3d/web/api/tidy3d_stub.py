@@ -14,8 +14,8 @@ from ...components.data.monitor_data import ModeSolverData
 from ...components.data.sim_data import SimulationData
 from ...components.eme.data.sim_data import EMESimulationData
 from ...components.eme.simulation import EMESimulation
-from ...components.heat_charge.heat.simulation import HeatSimulation
-from ...components.heat_charge.sim_data import HeatChargeSimulationData, HeatSimulationData
+from tidy3d.components.tcad.simulation.simulation import HeatSimulation
+from tidy3d.components.tcad.data.sim_data import HeatChargeSimulationData, HeatSimulationData
 from ...components.heat_charge.simulation import HeatChargeSimulation
 from ...components.simulation import Simulation
 from ...plugins.mode.mode_solver import ModeSolver

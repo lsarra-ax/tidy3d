@@ -24,7 +24,7 @@ from .data.dataset import (
 from .geometry.base import Box, ClipOperation, GeometryGroup
 from .geometry.utils import flatten_groups, traverse_geometries
 from .grid.grid import Coords, Grid
-from .heat_charge_spec import ConductorSpec, SolidSpec
+from tidy3d.components.electronic.heat_charge_spec import ConductorSpec, SolidSpec
 from .medium import (
     AbstractCustomMedium,
     AbstractPerturbationMedium,

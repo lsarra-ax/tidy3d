@@ -5,9 +5,9 @@ from typing import Union
 
 import pydantic.v1 as pd
 
-from ...log import log
-from ..base_sim.monitor import AbstractMonitor
-from ..types import ArrayFloat1D
+from tidy3d.log import log
+from tidy3d.components.base_sim.monitor import AbstractMonitor
+from tidy3d.components.types import ArrayFloat1D
 
 BYTES_REAL = 4
 

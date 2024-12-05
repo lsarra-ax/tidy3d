@@ -5,9 +5,9 @@ from typing import Optional
 
 import pydantic.v1 as pd
 
-from ...constants import VOLT
-from ..base import Tidy3dBaseModel
-from ..types import Union
+from tidy3d.constants import VOLT
+from tidy3d.components.base import Tidy3dBaseModel
+from tidy3d.components.types import Union
 
 
 class AbstractDevsimStruct(ABC, Tidy3dBaseModel):
