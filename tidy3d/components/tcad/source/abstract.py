@@ -1,4 +1,3 @@
-
 """Defines heat-charge material specifications for 'HeatChargeSimulation'"""
 
 from __future__ import annotations
@@ -27,8 +26,6 @@ class AbstractHeatChargeSource(AbstractSource, ABC):
         return plot_params_heat_source
 
 
-
-
 class StructureBasedHeatChargeSource(AbstractHeatChargeSource):
     """Abstract class associated with structures. Sources associated
     to structures must derive from this class"""
@@ -49,4 +46,3 @@ class StructureBasedHeatChargeSource(AbstractHeatChargeSource):
 
 class GlobalHeatChargeSource(AbstractHeatChargeSource):
     """Abstract heat/charge source applied to all structures in the simulation"""
-

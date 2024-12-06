@@ -1,12 +1,12 @@
-
-
+import pydantic.v1 as pd
+from tidy3d.components.base import Tidy3dBaseModel
 
 class HeatChargeBoundarySpec(Tidy3dBaseModel):
     """Heat-Charge boundary conditions specification.
 
     Example
     -------
-    >>> from tidy3d import SimulationBoundary
+    >>> from tidy3d import SimulationBoundary, ConvectionBC
     >>> bc_spec = HeatBoundarySpec(
     ...     placement=SimulationBoundary(),
     ...     condition=ConvectionBC(ambient_temperature=300, transfer_coeff=1),

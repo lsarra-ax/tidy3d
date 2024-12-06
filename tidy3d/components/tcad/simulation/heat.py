@@ -10,7 +10,7 @@ import pydantic.v1 as pd
 from tidy3d.log import log
 from tidy3d.components.types import Ax
 from tidy3d.components.viz import add_ax_if_none, equal_aspect
-from tidy3d.components.heat_charge.simulation import HeatChargeSimulation
+from tidy3d.components.tcad.simulation.heat_charge import HeatChargeSimulation
 
 
 class HeatSimulation(HeatChargeSimulation):

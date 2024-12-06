@@ -14,6 +14,7 @@ from tidy3d.components.base import cached_property
 from tidy3d.components.base_sim.source import AbstractSource
 from tidy3d.components.viz import PlotParams
 from tidy3d.components.tcad.viz import plot_params_heat_source
+from tidy3d.components.tcad.source.abstract import StructureBasedHeatChargeSource
 
 
 class HeatSource(StructureBasedHeatChargeSource):

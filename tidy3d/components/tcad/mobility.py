@@ -1,3 +1,5 @@
+import pydantic.v1 as pd
+from tidy3d.components.base import Tidy3dBaseModel
 
 # Mobility models
 class CaugheyThomasMobility(Tidy3dBaseModel):
@@ -74,65 +76,3 @@ class CaugheyThomasMobility(Tidy3dBaseModel):
         description="Exponent of thermal dependence of the doping exponent effect.",
     )
 
-
-# Generation-Recombination models
-class AugerRecombination(Tidy3dBaseModel):
-    """This class defines the parameters for the Auger recombination model.
-    NOTE: default parameters are those appropriate for Silicon."""
-
-    c_n: pd.PositiveFloat = pd.Field(
-        2.8e-31, title="Constant for electrons", description="Constant for electrons in cm^6/s"
-    )
-
-    c_p: pd.PositiveFloat = pd.Field(
-        9.9e-32, title="Constant for holes", description="Constant for holes in cm^6/s"
-    )
-
-
-class RadiativeRecombination(Tidy3dBaseModel):
-    """This class is used to define the parameters for the radiative recombination model.
-    NOTE: default values are those appropriate for Silicon."""
-
-    r_const: float = pd.Field(
-        1.6e-14,
-        title="Radiation constant in cm^3/s",
-        description="Radiation constant in cm^3/s",
-    )
-
-
-class SRHRecombination(Tidy3dBaseModel):
-    """This class defines the parameters for the Shockley-Reed-Hall recombination model.
-    NOTE: currently, lifetimes are considered constant (not dependent on temp. nor doping)
-    NOTE: default values are those appropriate for Silicon."""
-
-    tau_n: pd.PositiveFloat = pd.Field(
-        3.3e-6, title="Electron lifetime.", description="Electron lifetime."
-    )
-
-    tau_p: pd.PositiveFloat = pd.Field(4e-6, title="Hole lifetime.", description="Hole lifetime.")
-
-
-# Band-gap narrowing models
-class SlotboomNarrowingModel(Tidy3dBaseModel):
-    """This class specifies the parameters for the Slotboom model for band-gap narrowing.
-
-    Reference
-    ---------
-    'UNIFIED APPARENT BANDGAP NARROWING IN n- AND p-TYPE SILICON'
-    Solid-State Electronics Vol. 35, No. 2, pp. 125-129, 1992"""
-
-    v1: pd.PositiveFloat = pd.Field(
-        6.92 * 1e-3, title="V1 parameter", description=f"V1 parameter in {VOLT}", units=VOLT
-    )
-
-    n2: pd.PositiveFloat = pd.Field(
-        1.3e17,
-        title="n2 parameter",
-        description="n2 parameter in cm^(-3)",
-    )
-
-    c2: float = pd.Field(
-        0.5,
-        title="c2 parameter",
-        description="c2 parameter",
-    )
