@@ -539,7 +539,7 @@ __all__ = [
     "ChargeToleranceSpec",
     "DCSpec",
     "CaugheyThomasMobility",
-    "SlotboomNarrowingBandgap",
+    "SlotboomNarrowingBandGap",
     "ShockleyReedHallRecombination",
     "AugerRecombination",
     "RadiativeRecombination",

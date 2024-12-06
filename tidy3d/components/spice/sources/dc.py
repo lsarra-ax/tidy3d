@@ -23,7 +23,7 @@ from typing import Optional
 from tidy3d.components.base import Tidy3dBaseModel
 
 
-class AbstractSourceDC(Tidy3dBaseModel):
+class AbstractStaticTransferSourceDC(Tidy3dBaseModel):
     name: str
     start:  Optional[pd.PositiveFloat] = 0
     stop:  Optional[pd.PositiveFloat] | None = None
@@ -38,7 +38,8 @@ class AbstractSourceDC(Tidy3dBaseModel):
                     "If a bias different than 0 is requested, DEVSIM will start at 0 and increase bias "
                     "at 'dV' intervals until the required bias is reached. ",
     )
+    # TODO units
 
 
-SourceDC = AbstractSourceDC
-MultiSourceDC = list[AbstractSourceDC]
+StaticTransferSourceDC = AbstractStaticTransferSourceDC
+MultiStaticTransferSourceDC = list[StaticTransferSourceDC]

@@ -2,7 +2,7 @@ import pydantic.v1 as pd
 from tidy3d.components.base import Tidy3dBaseModel
 
 # Band-gap narrowing models
-class SlotboomNarrowingBandgap(Tidy3dBaseModel):
+class SlotboomNarrowingBandGap(Tidy3dBaseModel):
     """This class specifies the parameters for the Slotboom model for band-gap narrowing.
 
     Reference

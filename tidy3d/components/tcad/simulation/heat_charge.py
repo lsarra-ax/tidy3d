@@ -22,7 +22,8 @@ from tidy3d.components.bc_placement import (
     StructureStructureInterface,
 )
 from tidy3d.components.geometry.base import Box
-from tidy3d.components.electronic.heat_charge_spec import ConductorSpec, SemiConductorSpec, SolidSpec
+from tidy3d.components.tcad.materials.heat import SolidSpec
+from tidy3d.components.tcad.materials.charge import ConductorSpec, SemiConductorSpec,
 from tidy3d.components.scene import Scene
 from tidy3d.components.structure import Structure
 from tidy3d.components.types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
