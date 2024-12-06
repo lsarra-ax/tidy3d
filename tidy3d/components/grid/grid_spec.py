@@ -8,7 +8,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import pydantic.v1 as pd
 
-from ...constants import C_0, MICROMETER, inf
+from ...constants import C_0, MICROMETER
 from ...exceptions import SetupError
 from ...log import log
 from ..base import Tidy3dBaseModel
@@ -16,6 +16,7 @@ from ..geometry.base import Box
 from ..source import SourceType
 from ..structure import Structure, StructureType
 from ..types import TYPE_TAG_STR, Axis, Coordinate, Symmetry, annotate_type
+from ..utils import increment_float
 from .grid import Coords, Coords1D, Grid
 from .mesher import GradedMesher, MesherType
 
@@ -167,8 +168,8 @@ class GridSpec1d(Tidy3dBaseModel, ABC):
         center, size = simulation_box.center[axis], simulation_box.size[axis]
         # chop off any coords outside of simulation bounds, beyond some buffer region
         # to take numerical effects into account
-        bound_min = np.nextafter(center - size / 2, -inf, dtype=np.float32)
-        bound_max = np.nextafter(center + size / 2, inf, dtype=np.float32)
+        bound_min = increment_float(center - size / 2, -1)
+        bound_max = increment_float(center + size / 2, +1)
 
         if bound_max < bound_coords[0] or bound_min > bound_coords[-1]:
             axis_name = "xyz"[axis]

@@ -20,6 +20,7 @@ from ..base import Tidy3dBaseModel
 from ..medium import AnisotropicMedium, LossyMetalMedium, Medium2D, PECMedium
 from ..structure import MeshOverrideStructure, Structure, StructureType
 from ..types import ArrayFloat1D, Axis, Bound, Coordinate
+from ..utils import increment_float
 
 _ROOTS_TOL = 1e-10
 
@@ -594,10 +595,10 @@ class GradedMesher(Mesher):
             for bbox in query_bbox
             if all(
                 [
-                    bbox0[0, 0] + fp_eps >= bbox[0, 0],
-                    bbox0[1, 0] <= bbox[1, 0] + fp_eps,
-                    bbox0[0, 1] + fp_eps >= bbox[0, 1],
-                    bbox0[1, 1] <= bbox[1, 1] + fp_eps,
+                    bbox0[0, 0] >= increment_float(bbox[0, 0], -1),
+                    bbox0[1, 0] <= increment_float(bbox[1, 0], +1),
+                    bbox0[0, 1] >= increment_float(bbox[0, 1], -1),
+                    bbox0[1, 1] <= increment_float(bbox[1, 1], +1),
                 ]
             )
         ]
@@ -611,12 +612,12 @@ class GradedMesher(Mesher):
             for ind, bbox in enumerate(query_bbox)
             if all(
                 [
-                    bbox[0, 0] + fp_eps >= bbox0[0, 0],
-                    bbox[1, 0] <= bbox0[1, 0] + fp_eps,
-                    bbox[0, 1] + fp_eps >= bbox0[0, 1],
-                    bbox[1, 1] <= bbox0[1, 1] + fp_eps,
-                    bbox[0, 2] + fp_eps >= bbox0[0, 2],
-                    bbox[1, 2] <= bbox0[1, 2] + fp_eps,
+                    bbox[0, 0] >= increment_float(bbox0[0, 0], -1),
+                    bbox[1, 0] <= increment_float(bbox0[1, 0], +1),
+                    bbox[0, 1] >= increment_float(bbox0[0, 1], -1),
+                    bbox[1, 1] <= increment_float(bbox0[1, 1], +1),
+                    bbox[0, 2] >= increment_float(bbox0[0, 2], -1),
+                    bbox[1, 2] <= increment_float(bbox0[1, 2], +1),
                 ]
             )
         ]
