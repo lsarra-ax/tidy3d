@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Literal, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pydantic.v1 as pd
@@ -550,42 +550,63 @@ class LayerRefinementSpec(Tidy3dBaseModel):
         units=MICROMETER,
     )
 
-    medium: Literal["metal", "dielectric", "all"] = pd.Field(
+    min_steps_along_axis: Optional[pd.PositiveFloat] = pd.Field(
+        2,
+        title="Minimal Number Of Steps Along Axis",
+        description="Minimal number of steps discretizing the layer thickness. "
+        "If the layer has 0 thicnkess, only enforce a grid boundary to pass the layer.",
+    )
+
+    bounds_snapping: Tuple[bool, bool] = pd.Field(
+        [True, True],
+        title="Placing Grid Snapping Point At Minimum and maximum positions",
+        description="Enforcing grid boundaries to pass through Minimum and maximum positions "
+        "of the layer.",
+    )
+
+    medium_refine: Literal["metal", "dielectric", "all"] = pd.Field(
         "metal",
-        title="Material to be considered for refinement",
-        description="Apply refinement to structures made of ``medium``, "
+        title="Material To Be Considered For Inplane Refinement",
+        description="Apply inplane mesh refinement to structures made of ``medium``, "
         "which can take value ``metal`` for PEC and lossy metal, ``dielectric`` "
         "for non-metallic materials, and ``all`` for all materials.",
     )
 
-    min_steps_along_axis: pd.PositiveFloat = pd.Field(
-        1,
-        title="Minimal number of steps along axis",
-        description="Minimal number of steps discretizing the layer thickness.",
-    )
-
     corner_snapping: bool = pd.Field(
         True,
-        title="Placing grid snapping point at corners",
+        title="Placing Grid Snapping Point At Corners",
         description="Enforcing grid boundaries to pass through corners of geometries considered "
-        "for mesh refinement specified by ``medium``.",
+        "for mesh refinement specified by ``medium_refine``.",
     )
 
     corner_refinement: pd.PositiveInt = pd.Field(
-        None,
-        title="Mesh refinement factor around corners",
-        description="If not ``None``, refine mesh by this factor around corners of geometries "
-        "considered for mesh refinement specified by ``medium``. This option is equivalent to edge "
-        "refinement if the edge is axis-aligned.",
+        3,
+        title="Mesh Refinement Factor Around Corners",
+        description="If not ``None``, refine inplane mesh around corners of geometries "
+        "considered for mesh refinement specified by ``medium_refine``. "
+        "The refined grid size takes the smaller value of grid "
+        "size along axis, and the original inplane grid size divided by this factor. "
+        "This option is equivalent to edge refinement if the edge is axis-aligned.",
     )
 
-    segment_subdivision: pd.PositiveInt = pd.Field(
-        None,
-        title="Axis-aligned segment subdivision factor",
+    min_steps_along_segment: pd.PositiveInt = pd.Field(
+        1,
+        title="Minimal Number Of Steps Along Axis-aligned Segment",
         description="If not ``None``, placing at least this number of grid points at "
         "axis-aligned segment connecting neighboring corners of geometreis considered "
-        "for mesh refinement specified by ``medium``.",
+        "for mesh refinement specified by ``medium_refine``.",
     )
+
+    @pd.validator("bounds", always=True)
+    def bounds_order(cls, val):
+        """Maximum position of the layer should be no smaller than its minimal position."""
+        if val[1] < val[0]:
+            raise SetupError(
+                "'bounds' must be specified in the order of "
+                "minimum and maximum positions of the layer along the axis. "
+                f"But now the maximum {val[1]} is smaller than the minimum {val[0]}."
+            )
+        return val
 
 
 class GridSpec(Tidy3dBaseModel):
