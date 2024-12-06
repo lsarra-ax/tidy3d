@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Literal, Tuple, Union
 
 import numpy as np
 import pydantic.v1 as pd
@@ -532,6 +532,62 @@ class AutoGrid(GridSpec1d):
 GridType = Union[UniformGrid, CustomGrid, AutoGrid, CustomGridBoundaries]
 
 
+class LayerRefinementSpec(Tidy3dBaseModel):
+    """Specification for mesh refinement inside a layer. The material distribution is
+    assumed to be uniform along layer normal axis.
+    """
+
+    axis: Axis = pd.Field(
+        ...,
+        title="Axis",
+        description="Specifies dimension of the layer normal axis (0,1,2) -> (x,y,z).",
+    )
+
+    bounds: Tuple[float, float] = pd.Field(
+        ...,
+        title="Layer Bounds",
+        description="Minimum and maximum positions of the layer along axis dimension.",
+        units=MICROMETER,
+    )
+
+    medium: Literal["metal", "dielectric", "all"] = pd.Field(
+        "metal",
+        title="Material to be considered for refinement",
+        description="Apply refinement to structures made of ``medium``, "
+        "which can take value ``metal`` for PEC and lossy metal, ``dielectric`` "
+        "for non-metallic materials, and ``all`` for all materials.",
+    )
+
+    min_steps_along_axis: pd.PositiveFloat = pd.Field(
+        1,
+        title="Minimal number of steps along axis",
+        description="Minimal number of steps discretizing the layer thickness.",
+    )
+
+    corner_snapping: bool = pd.Field(
+        True,
+        title="Placing grid snapping point at corners",
+        description="Enforcing grid boundaries to pass through corners of geometries considered "
+        "for mesh refinement specified by ``medium``.",
+    )
+
+    corner_refinement: pd.PositiveInt = pd.Field(
+        None,
+        title="Mesh refinement factor around corners",
+        description="If not ``None``, refine mesh by this factor around corners of geometries "
+        "considered for mesh refinement specified by ``medium``. This option is equivalent to edge "
+        "refinement if the edge is axis-aligned.",
+    )
+
+    segment_subdivision: pd.PositiveInt = pd.Field(
+        None,
+        title="Axis-aligned segment subdivision factor",
+        description="If not ``None``, placing at least this number of grid points at "
+        "axis-aligned segment connecting neighboring corners of geometreis considered "
+        "for mesh refinement specified by ``medium``.",
+    )
+
+
 class GridSpec(Tidy3dBaseModel):
     """Collective grid specification for all three dimensions.
 
@@ -755,6 +811,61 @@ class GridSpec(Tidy3dBaseModel):
 
     @classmethod
     def auto(
+        cls,
+        wavelength: pd.PositiveFloat = None,
+        min_steps_per_wvl: pd.PositiveFloat = 10.0,
+        max_scale: pd.PositiveFloat = 1.4,
+        override_structures: List[StructureType] = (),
+        snapping_points: Tuple[CoordinateOptional, ...] = (),
+        dl_min: pd.NonNegativeFloat = 0.0,
+        mesher: MesherType = GradedMesher(),
+    ) -> GridSpec:
+        """Use the same :class:`AutoGrid` along each of the three directions.
+
+        Parameters
+        ----------
+        wavelength : pd.PositiveFloat, optional
+            Free-space wavelength for automatic nonuniform grid. It can be 'None'
+            if there is at least one source in the simulation, in which case it is defined by
+            the source central frequency.
+        min_steps_per_wvl : pd.PositiveFloat, optional
+            Minimal number of steps per wavelength in each medium.
+        max_scale : pd.PositiveFloat, optional
+            Sets the maximum ratio between any two consecutive grid steps.
+        override_structures : List[StructureType]
+            A list of structures that is added on top of the simulation structures in
+            the process of generating the grid. This can be used to refine the grid or make it
+            coarser depending than the expected need for higher/lower resolution regions.
+        snapping_points : Tuple[CoordinateOptional, ...]
+            A set of points that enforce grid boundaries to pass through them.
+        dl_min: pd.NonNegativeFloat
+            Lower bound of grid size.
+        mesher : MesherType = GradedMesher()
+            The type of mesher to use to generate the grid automatically.
+
+        Returns
+        -------
+        GridSpec
+            :class:`GridSpec` with the same automatic nonuniform grid settings in each direction.
+        """
+
+        grid_1d = AutoGrid(
+            min_steps_per_wvl=min_steps_per_wvl,
+            max_scale=max_scale,
+            dl_min=dl_min,
+            mesher=mesher,
+        )
+        return cls(
+            wavelength=wavelength,
+            grid_x=grid_1d,
+            grid_y=grid_1d,
+            grid_z=grid_1d,
+            override_structures=override_structures,
+            snapping_points=snapping_points,
+        )
+
+    @classmethod
+    def layer_auto(
         cls,
         wavelength: pd.PositiveFloat = None,
         min_steps_per_wvl: pd.PositiveFloat = 10.0,

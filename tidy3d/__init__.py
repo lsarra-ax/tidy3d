@@ -130,6 +130,7 @@ from .components.grid.grid_spec import (
     CustomGrid,
     CustomGridBoundaries,
     GridSpec,
+    LayerRefinementSpec,
     UniformGrid,
 )
 from .components.heat_charge.boundary import (
@@ -322,6 +323,7 @@ __all__ = [
     "CustomGrid",
     "AutoGrid",
     "CustomGridBoundaries",
+    "LayerRefinementSpec",
     "Box",
     "Sphere",
     "Cylinder",
