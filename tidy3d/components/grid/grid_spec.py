@@ -616,7 +616,9 @@ class LayerRefinementSpec(Tidy3dBaseModel):
         min_steps_along_axis: pd.PositiveFloat,
         corner_refinement: pd.PositiveFloat,
     ):
-        """Specification for mesh refinement of PEC and lossy metal in a layer."""
+        """Specification for mesh refinement of PEC and lossy metal in a layer, where corner snapping
+        and refinement is important.
+        """
         return cls(
             axis=axis,
             bounds=bounds,
