@@ -2,7 +2,7 @@
 This class defines standard SPICE analysis types (electrical simulations configurations).
 """
 class DCSpec(Tidy3dBaseModel):
-    """This class sets parameters used in DC charge simulations.
+    """This class sets parameters used in DC simulations.
 
     Example
     -------

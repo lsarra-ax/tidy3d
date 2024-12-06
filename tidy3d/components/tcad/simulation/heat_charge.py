@@ -65,16 +65,6 @@ from tidy3d.components.tcad.viz import (
 
 HEAT_CHARGE_BACK_STRUCTURE_STR = "<<<HEAT_CHARGE_BACKGROUND_STRUCTURE>>>"
 
-
-
-class HeatChargeSimulationType(str, Enum):
-    """Enumeration of the types of simulations currently supported"""
-
-    HEAT = "HEAT"
-    CONDUCTION = "CONDUCTION"
-    CHARGE = "CHARGE"
-
-
 class HeatChargeSimulation(AbstractSimulation):
     """This class is used to define thermo-electric simulations.
 

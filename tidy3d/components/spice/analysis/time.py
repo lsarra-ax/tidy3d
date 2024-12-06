@@ -1,5 +1,3 @@
-
-
 """Dealing with time specifications for DeviceSimulation"""
 
 from abc import ABC
