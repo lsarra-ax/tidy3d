@@ -579,7 +579,7 @@ class LayerRefinementSpec(Tidy3dBaseModel):
         "for mesh refinement specified by ``medium_refine``.",
     )
 
-    corner_refinement: pd.PositiveInt = pd.Field(
+    corner_refinement: Optional[pd.PositiveFloat] = pd.Field(
         3,
         title="Mesh Refinement Factor Around Corners",
         description="If not ``None``, refine inplane mesh around corners of geometries "
@@ -589,7 +589,7 @@ class LayerRefinementSpec(Tidy3dBaseModel):
         "This option is equivalent to edge refinement if the edge is axis-aligned.",
     )
 
-    min_steps_along_segment: pd.PositiveInt = pd.Field(
+    min_steps_along_segment: Optional[pd.PositiveFloat] = pd.Field(
         1,
         title="Minimal Number Of Steps Along Axis-aligned Segment",
         description="If not ``None``, placing at least this number of grid points at "
@@ -607,6 +607,46 @@ class LayerRefinementSpec(Tidy3dBaseModel):
                 f"But now the maximum {val[1]} is smaller than the minimum {val[0]}."
             )
         return val
+
+    @classmethod
+    def metal_refinement(
+        cls,
+        axis: Axis,
+        bounds: Tuple[float, float],
+        min_steps_along_axis: pd.PositiveFloat,
+        corner_refinement: pd.PositiveFloat,
+    ):
+        """Specification for mesh refinement of PEC and lossy metal in a layer."""
+        return cls(
+            axis=axis,
+            bounds=bounds,
+            min_steps_along_axis=min_steps_along_axis,
+            bounds_snapping=(True, True),
+            medium_refine="metal",
+            corner_snapping=True,
+            corner_refinement=corner_refinement,
+            min_steps_along_segment=None,
+        )
+
+    @classmethod
+    def dielectric_refinement(
+        cls,
+        axis: Axis,
+        bounds: Tuple[float, float],
+        min_steps_along_axis: pd.PositiveFloat,
+        min_steps_along_segment: pd.PositiveFloat,
+    ):
+        """Specification for mesh refinement of dielectric in a layer, typically to resolve small gap."""
+        return cls(
+            axis=axis,
+            bounds=bounds,
+            min_steps_along_axis=min_steps_along_axis,
+            bounds_snapping=(True, True),
+            medium_refine="dielectric",
+            corner_snapping=False,
+            corner_refinement=None,
+            min_steps_along_segment=min_steps_along_segment,
+        )
 
 
 class GridSpec(Tidy3dBaseModel):
