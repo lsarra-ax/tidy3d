@@ -18,3 +18,27 @@ Examples:
 ```
 
 """
+import pydantic.v1 as pd
+from typing import Optional
+from tidy3d.components.base import Tidy3dBaseModel
+
+
+class AbstractSourceDC(Tidy3dBaseModel):
+    name: str
+    start:  Optional[pd.PositiveFloat] = 0
+    stop:  Optional[pd.PositiveFloat] | None = None
+    """
+    TODOMARC chat Either they define the stop or they define the step, how do we want to enforce, validator?
+    """
+
+    step: Optional[pd.PositiveFloat] = pd.Field(
+        1.0,
+        title="Bias step.",
+        description="By default, a solution is computed at 0 bias. "
+                    "If a bias different than 0 is requested, DEVSIM will start at 0 and increase bias "
+                    "at 'dV' intervals until the required bias is reached. ",
+    )
+
+
+SourceDC = AbstractSourceDC
+MultiSourceDC = list[AbstractSourceDC]
