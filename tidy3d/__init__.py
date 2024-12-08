@@ -29,9 +29,7 @@ from tidy3d.components.tcad.grid import (
     UniformUnstructuredGrid,
 )
 from tidy3d.components.tcad.materials.charge import (
-    ConductorSpec,
     ElectricSpecType,
-    InsulatorSpec,
     SemiConductorSpec,
 )
 from tidy3d.components.tcad.materials.heat import FluidSpec, SolidSpec, ThermalSpecType
@@ -69,7 +67,6 @@ from tidy3d.components.tcad.types import (
 
 from .components.apodization import ApodizationSpec
 
-# boundary placement for other solvers
 # boundary placement for other solvers
 from .components.bc_placement import (
     MediumMediumInterface,
