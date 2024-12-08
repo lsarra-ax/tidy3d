@@ -1,9 +1,11 @@
 """Defines heat material specifications"""
 
 from __future__ import annotations
+
 import pydantic.v1 as pd
-from tidy3d.constants import HEAT_FLUX, HEAT_TRANSFER_COEFF, KELVIN
+
 from tidy3d.components.tcad.boundary.abstract import HeatChargeBC
+from tidy3d.constants import HEAT_FLUX, HEAT_TRANSFER_COEFF, KELVIN
 
 
 class TemperatureBC(HeatChargeBC):

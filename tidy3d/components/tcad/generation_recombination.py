@@ -1,5 +1,7 @@
-from tidy3d.components.base import Tidy3dBaseModel
 import pydantic.v1 as pd
+
+from tidy3d.components.base import Tidy3dBaseModel
+
 
 # Generation-Recombination models
 class AugerRecombination(Tidy3dBaseModel):
@@ -36,5 +38,3 @@ class ShockleyReedHallRecombination(Tidy3dBaseModel):
     )
 
     tau_p: pd.PositiveFloat = pd.Field(4e-6, title="Hole lifetime.", description="Hole lifetime.")
-
-

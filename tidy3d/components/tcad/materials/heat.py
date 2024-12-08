@@ -1,7 +1,9 @@
 from typing import Union
+
 import pydantic.v1 as pd
-from tidy3d.constants import SPECIFIC_HEAT_CAPACITY, THERMAL_CONDUCTIVITY
+
 from tidy3d.components.tcad.materials.abstract import AbstractHeatChargeSpec
+from tidy3d.constants import SPECIFIC_HEAT_CAPACITY, THERMAL_CONDUCTIVITY
 
 
 class FluidSpec(AbstractHeatChargeSpec):

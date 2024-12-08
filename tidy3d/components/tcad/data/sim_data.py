@@ -7,16 +7,28 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import pydantic.v1 as pd
 
-from tidy3d.exceptions import DataError
-from tidy3d.log import log
 from tidy3d.components.base_sim.data.sim_data import AbstractSimulationData
-from tidy3d.components.data.data_array import DCCapacitanceDataArray, DCIVCurveDataArray, SpatialDataArray
-from tidy3d.components.data.dataset import TetrahedralGridDataset, TriangularGridDataset, UnstructuredGridDataset
+from tidy3d.components.data.data_array import (
+    DCCapacitanceDataArray,
+    DCIVCurveDataArray,
+    SpatialDataArray,
+)
+from tidy3d.components.data.dataset import (
+    TetrahedralGridDataset,
+    TriangularGridDataset,
+    UnstructuredGridDataset,
+)
+from tidy3d.components.tcad.data.types import (
+    HeatChargeMonitorDataTypes,
+    TemperatureData,
+    VoltageData,
+)
+from tidy3d.components.tcad.simulation.heat import HeatSimulation
+from tidy3d.components.tcad.simulation.heat_charge import HeatChargeSimulation
 from tidy3d.components.types import Ax, Literal, RealFieldVal
 from tidy3d.components.viz import add_ax_if_none, equal_aspect
-from tidy3d.components.tcad.simulation.heat import HeatSimulation
-from tidy3d.components.tcad.data.types import TemperatureData, VoltageData, HeatChargeMonitorDataTypes
-from tidy3d.components.tcad.simulation.heat_charge import HeatChargeSimulation
+from tidy3d.exceptions import DataError
+from tidy3d.log import log
 
 
 class HeatChargeSimulationData(AbstractSimulationData):

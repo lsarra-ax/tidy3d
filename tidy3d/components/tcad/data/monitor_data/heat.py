@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import Optional
+
 import pydantic.v1 as pd
 
+from tidy3d.components.base import skip_if_fields_missing
+from tidy3d.components.data.dataset import FieldDatasetTypes
+from tidy3d.components.tcad.data.monitor_data.abstract import HeatChargeMonitorData
+from tidy3d.components.tcad.monitors.heat import TemperatureMonitor
 from tidy3d.constants import KELVIN
 from tidy3d.log import log
-from tidy3d.components.base import skip_if_fields_missing
-from tidy3d.components.tcad.monitors.heat import (
-    TemperatureMonitor
-)
-from tidy3d.components.tcad.data.monitor_data.abstract import HeatChargeMonitorData
-from tidy3d.components.data.dataset import FieldDatasetTypes
 
 
 class TemperatureData(HeatChargeMonitorData):
@@ -71,4 +70,3 @@ class TemperatureData(HeatChargeMonitorData):
 
         new_temp = self._symmetry_expanded_copy(property=self.temperature)
         return self.updated_copy(temperature=new_temp, symmetry=(0, 0, 0))
-

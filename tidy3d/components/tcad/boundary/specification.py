@@ -1,8 +1,10 @@
 import pydantic.v1 as pd
+
 from tidy3d.components.base import Tidy3dBaseModel
 from tidy3d.components.bc_placement import BCPlacementType
-from tidy3d.components.types import TYPE_TAG_STR
 from tidy3d.components.tcad.types import HeatChargeBCTypes
+from tidy3d.components.types import TYPE_TAG_STR
+
 
 class HeatChargeBoundarySpec(Tidy3dBaseModel):
     """Heat-Charge boundary conditions specification.

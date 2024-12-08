@@ -1,5 +1,7 @@
 import pydantic.v1 as pd
+
 from tidy3d.components.base import Tidy3dBaseModel
+
 
 # Mobility models
 class CaugheyThomasMobility(Tidy3dBaseModel):
@@ -75,4 +77,3 @@ class CaugheyThomasMobility(Tidy3dBaseModel):
         title="Exponent of thermal dependence of the doping exponent effect.",
         description="Exponent of thermal dependence of the doping exponent effect.",
     )
-

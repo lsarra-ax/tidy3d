@@ -1,5 +1,8 @@
 import pydantic.v1 as pd
+
 from tidy3d.components.tcad.monitors.abstract import HeatChargeMonitor
+from tidy3d.log import log
+
 
 class VoltageMonitor(HeatChargeMonitor):
     """Electric potential monitor."""

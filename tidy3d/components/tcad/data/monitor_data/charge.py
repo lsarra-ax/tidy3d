@@ -2,24 +2,24 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import Optional
+
 import pydantic.v1 as pd
-from tidy3d.constants import VOLT
-from tidy3d.log import log
+
 from tidy3d.components.base import skip_if_fields_missing
 from tidy3d.components.data.data_array import DCCapacitanceDataArray
+from tidy3d.components.tcad.data.monitor_data.abstract import (
+    FieldDatasetTypes,
+    HeatChargeDataset,
+    HeatChargeMonitorData,
+)
 from tidy3d.components.tcad.monitors.charge import (
     CapacitanceMonitor,
     FreeCarrierMonitor,
     VoltageMonitor,
 )
-from tidy3d.components.tcad.data.monitor_data.abstract import (
-    HeatChargeMonitorData,
-    HeatChargeDataset
-)
-from tidy3d.components.tcad.data.monitor_data.abstract import (
-    FieldDatasetTypes
-)
+from tidy3d.constants import VOLT
+from tidy3d.log import log
 
 
 class PotentialData(HeatChargeMonitorData):

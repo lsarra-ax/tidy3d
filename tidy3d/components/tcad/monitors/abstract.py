@@ -1,11 +1,9 @@
 """Objects that define how data is recorded from simulation."""
 
 from abc import ABC
-from typing import Union
 
 import pydantic.v1 as pd
 
-from tidy3d.log import log
 from tidy3d.components.base_sim.monitor import AbstractMonitor
 from tidy3d.components.types import ArrayFloat1D
 

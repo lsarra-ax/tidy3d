@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pydantic.v1 as pd
 from matplotlib import colormaps
 
-from tidy3d.constants import VOLUMETRIC_HEAT_RATE, inf
-from tidy3d.exceptions import SetupError
-from tidy3d.log import log
 from tidy3d.components.base import skip_if_fields_missing
 from tidy3d.components.base_sim.simulation import AbstractSimulation
 from tidy3d.components.bc_placement import (
@@ -22,12 +18,9 @@ from tidy3d.components.bc_placement import (
     StructureStructureInterface,
 )
 from tidy3d.components.geometry.base import Box
-from tidy3d.components.tcad.materials.heat import SolidSpec
-from tidy3d.components.tcad.materials.charge import ConductorSpec, SemiConductorSpec
 from tidy3d.components.scene import Scene
+from tidy3d.components.spice.types import ElectricalAnalysisTypes, TransferFunctionDC
 from tidy3d.components.structure import Structure
-from tidy3d.components.types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
-from tidy3d.components.viz import PlotParams, add_ax_if_none, equal_aspect
 from tidy3d.components.tcad.boundary.charge import (
     CurrentBC,
     InsulatingBC,
@@ -42,32 +35,38 @@ from tidy3d.components.tcad.boundary.specification import (
     HeatBoundarySpec,
     HeatChargeBoundarySpec,
 )
-from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
+from tidy3d.components.tcad.grid import (
+    DistanceUnstructuredGrid,
+    UniformUnstructuredGrid,
+    UnstructuredGridType,
+)
+from tidy3d.components.tcad.materials.charge import ConductorSpec, SemiConductorSpec
+from tidy3d.components.tcad.materials.heat import SolidSpec
 from tidy3d.components.tcad.monitors.charge import (
     VoltageMonitor,
 )
 from tidy3d.components.tcad.monitors.heat import (
     TemperatureMonitor,
 )
-from tidy3d.components.tcad.types import (
-    ChargeMonitorTypes,
-    ChargeSourceTypes,
-    ElectricBCTypes,
-    HeatBCTypes,
-    HeatSourceTypes,
-    HeatChargeSourceTypes,
-    HeatChargeSimulationTypes,
-    HeatChargeMonitorTypes,
+from tidy3d.components.tcad.source.abstract import (
+    GlobalHeatChargeSource,
+)
+from tidy3d.components.tcad.source.coupled import (
+    HeatFromElectricSource,
 )
 from tidy3d.components.tcad.source.heat import (
     HeatSource,
     UniformHeatSource,
 )
-from tidy3d.components.tcad.source.coupled import (
-    HeatFromElectricSource,
-)
-from tidy3d.components.tcad.source.abstract import (
-    GlobalHeatChargeSource,
+from tidy3d.components.tcad.types import (
+    ChargeMonitorTypes,
+    ChargeSourceTypes,
+    ElectricBCTypes,
+    HeatBCTypes,
+    HeatChargeMonitorTypes,
+    HeatChargeSimulationTypes,
+    HeatChargeSourceTypes,
+    HeatSourceTypes,
 )
 from tidy3d.components.tcad.viz import (
     CHARGE_BC_INSULATOR,
@@ -78,7 +77,11 @@ from tidy3d.components.tcad.viz import (
     plot_params_heat_bc,
     plot_params_heat_source,
 )
-from tidy3d.components.spice.types import ElectricalAnalysisTypes, TransferFunctionDC
+from tidy3d.components.types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
+from tidy3d.components.viz import PlotParams, add_ax_if_none, equal_aspect
+from tidy3d.constants import VOLUMETRIC_HEAT_RATE, inf
+from tidy3d.exceptions import SetupError
+from tidy3d.log import log
 
 HEAT_CHARGE_BACK_STRUCTURE_STR = "<<<HEAT_CHARGE_BACKGROUND_STRUCTURE>>>"
 
@@ -175,9 +178,9 @@ class HeatChargeSimulation(AbstractSimulation):
         (0, 0, 0),
         title="Symmetries",
         description="Tuple of integers defining reflection symmetry across a plane "
-                    "bisecting the simulation domain normal to the x-, y-, and z-axis "
-                    "at the simulation center of each axis, respectively. "
-                    "Each element can be ``0`` (symmetry off) or ``1`` (symmetry on).",
+        "bisecting the simulation domain normal to the x-, y-, and z-axis "
+        "at the simulation center of each axis, respectively. "
+        "Each element can be ``0`` (symmetry off) or ``1`` (symmetry on).",
     )
 
     electrical_analysis: ElectricalAnalysisTypes = pd.Field(
@@ -420,7 +423,7 @@ class HeatChargeSimulation(AbstractSimulation):
                     bc for bc in bounday_conditions if isinstance(bc.condition, HeatBCTypes)
                 ]
                 if len(type_bcs) == 0 or all(
-                        isinstance(bc.condition, NeumannBCsHeat) for bc in type_bcs
+                    isinstance(bc.condition, NeumannBCsHeat) for bc in type_bcs
                 ):
                     raise_error = True
             elif sim_type == HeatChargeSimulationTypes.CONDUCTION:
@@ -428,7 +431,7 @@ class HeatChargeSimulation(AbstractSimulation):
                     bc for bc in bounday_conditions if isinstance(bc.condition, ElectricBCTypes)
                 ]
                 if len(type_bcs) == 0 or all(
-                        isinstance(bc.condition, NeumannBCsCharge) for bc in type_bcs
+                    isinstance(bc.condition, NeumannBCsCharge) for bc in type_bcs
                 ):
                     raise_error = True
 
@@ -537,18 +540,18 @@ class HeatChargeSimulation(AbstractSimulation):
         for structure in structures:
             if isinstance(structure.medium.electric_spec, SemiConductorSpec):
                 if (
-                        structure.medium.electric_spec.donors is not None
-                        or structure.medium.electric_spec.acceptors is not None
+                    structure.medium.electric_spec.donors is not None
+                    or structure.medium.electric_spec.acceptors is not None
                 ):
                     return True
         return charge_sim
 
     @staticmethod
     def _check_simulation_types(
-            values: Dict,
-            HeatBCTypes=HeatBCTypes,
-            ElectricBCTypes=ElectricBCTypes,
-            HeatSourceTypes=HeatSourceTypes,
+        values: Dict,
+        HeatBCTypes=HeatBCTypes,
+        ElectricBCTypes=ElectricBCTypes,
+        HeatSourceTypes=HeatSourceTypes,
     ) -> list[HeatChargeSimulationTypes]:
         """Given model dictionary ``values``, check the type of simulations to be run
         based on BCs and sources.
@@ -608,17 +611,17 @@ class HeatChargeSimulation(AbstractSimulation):
     @equal_aspect
     @add_ax_if_none
     def plot_property(
-            self,
-            x: float = None,
-            y: float = None,
-            z: float = None,
-            ax: Ax = None,
-            alpha: float = None,
-            source_alpha: float = None,
-            monitor_alpha: float = None,
-            property: str = "heat_conductivity",
-            hlim: Tuple[float, float] = None,
-            vlim: Tuple[float, float] = None,
+        self,
+        x: float = None,
+        y: float = None,
+        z: float = None,
+        ax: Ax = None,
+        alpha: float = None,
+        source_alpha: float = None,
+        monitor_alpha: float = None,
+        property: str = "heat_conductivity",
+        hlim: Tuple[float, float] = None,
+        vlim: Tuple[float, float] = None,
     ) -> Ax:
         """Plot each of simulation's components on a plane defined by one nonzero x,y,z coordinate.
 
@@ -669,11 +672,11 @@ class HeatChargeSimulation(AbstractSimulation):
             )
         if len(simulation_types) == 1:
             if (
-                    property == "heat_conductivity"
-                    and HeatChargeSimulationTypes.CONDUCTION in simulation_types
+                property == "heat_conductivity"
+                and HeatChargeSimulationTypes.CONDUCTION in simulation_types
             ) or (
-                    property == "electric_conductivity"
-                    and HeatChargeSimulationTypes.HEAT in simulation_types
+                property == "electric_conductivity"
+                and HeatChargeSimulationTypes.HEAT in simulation_types
             ):
                 raise ValueError(
                     f"'property' in 'plot_property()' was defined as {property} but the "
@@ -709,12 +712,12 @@ class HeatChargeSimulation(AbstractSimulation):
     @equal_aspect
     @add_ax_if_none
     def plot_boundaries(
-            self,
-            x: float = None,
-            y: float = None,
-            z: float = None,
-            property: str = "heat_conductivity",
-            ax: Ax = None,
+        self,
+        x: float = None,
+        y: float = None,
+        z: float = None,
+        property: str = "heat_conductivity",
+        ax: Ax = None,
     ) -> Ax:
         """Plot each of simulation's boundary conditions on a plane defined by one nonzero x,y,z
         coordinate.
@@ -795,7 +798,7 @@ class HeatChargeSimulation(AbstractSimulation):
         return plot_params
 
     def _plot_boundary_condition(
-            self, shape: Shapely, boundary_spec: HeatChargeBoundarySpec, ax: Ax
+        self, shape: Shapely, boundary_spec: HeatChargeBoundarySpec, ax: Ax
     ) -> Ax:
         """Plot a structure's cross section shape for a given boundary condition."""
         plot_params_bc = self._get_bc_plot_params(boundary_spec=boundary_spec)
@@ -804,9 +807,9 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _structure_to_bc_spec_map(
-            plane: Box,
-            structures: Tuple[Structure, ...],
-            boundary_spec: Tuple[HeatChargeBoundarySpec, ...],
+        plane: Box,
+        structures: Tuple[Structure, ...],
+        boundary_spec: Tuple[HeatChargeBoundarySpec, ...],
     ) -> Dict[str, HeatChargeBoundarySpec]:
         """Construct structure name to bc spec inverse mapping. One structure may correspond to
         multiple boundary conditions."""
@@ -817,8 +820,8 @@ class HeatChargeSimulation(AbstractSimulation):
         for bc_spec in boundary_spec:
             bc_place = bc_spec.placement
             if (
-                    isinstance(bc_place, (StructureBoundary, StructureSimulationBoundary))
-                    and bc_place.structure in named_structures_present
+                isinstance(bc_place, (StructureBoundary, StructureSimulationBoundary))
+                and bc_place.structure in named_structures_present
             ):
                 if bc_place.structure in struct_to_bc_spec:
                     struct_to_bc_spec[bc_place.structure] += [bc_spec]
@@ -840,9 +843,9 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _medium_to_bc_spec_map(
-            plane: Box,
-            structures: Tuple[Structure, ...],
-            boundary_spec: Tuple[HeatChargeBoundarySpec, ...],
+        plane: Box,
+        structures: Tuple[Structure, ...],
+        boundary_spec: Tuple[HeatChargeBoundarySpec, ...],
     ) -> Dict[str, HeatChargeBoundarySpec]:
         """Construct medium name to bc spec inverse mapping. One medium may correspond to
         multiple boundary conditions."""
@@ -866,10 +869,10 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _construct_forward_boundaries(
-            shapes: Tuple[Tuple[str, str, Shapely, Tuple[float, float, float, float]], ...],
-            struct_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
-            med_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
-            background_structure_shape: Shapely,
+        shapes: Tuple[Tuple[str, str, Shapely, Tuple[float, float, float, float]], ...],
+        struct_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
+        med_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
+        background_structure_shape: Shapely,
     ) -> Tuple[Tuple[HeatChargeBoundarySpec, Shapely], ...]:
         """Construct Simulation, StructureSimulation, Structure, and MediumMedium boundaries."""
 
@@ -885,8 +888,8 @@ class HeatChargeSimulation(AbstractSimulation):
                     if name not in struct_to_bc_spec:
                         continue
                     if any(
-                            not isinstance(bc_spec.placement, StructureSimulationBoundary)
-                            for bc_spec in struct_to_bc_spec[name]
+                        not isinstance(bc_spec.placement, StructureSimulationBoundary)
+                        for bc_spec in struct_to_bc_spec[name]
                     ):
                         continue
 
@@ -958,9 +961,9 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _construct_reverse_boundaries(
-            shapes: Tuple[Tuple[str, str, Shapely, Bound], ...],
-            struct_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
-            background_structure_shape: Shapely,
+        shapes: Tuple[Tuple[str, str, Shapely, Bound], ...],
+        struct_to_bc_spec: Dict[str, HeatChargeBoundarySpec],
+        background_structure_shape: Shapely,
     ) -> Tuple[Tuple[HeatChargeBoundarySpec, Shapely], ...]:
         """Construct StructureStructure boundaries."""
 
@@ -980,7 +983,7 @@ class HeatChargeSimulation(AbstractSimulation):
 
             # intersect existing boundaries
             for index, (_bc_spec, _name, _bdry, _bounds, _completed) in enumerate(
-                    boundaries_reverse
+                boundaries_reverse
             ):
                 if not _completed:
                     if Box._do_not_intersect(bounds, _bounds, shape, _bdry):
@@ -1026,9 +1029,9 @@ class HeatChargeSimulation(AbstractSimulation):
 
     @staticmethod
     def _construct_heat_charge_boundaries(
-            structures: List[Structure],
-            plane: Box,
-            boundary_spec: List[HeatChargeBoundarySpec],
+        structures: List[Structure],
+        plane: Box,
+        boundary_spec: List[HeatChargeBoundarySpec],
     ) -> List[Tuple[HeatChargeBoundarySpec, Shapely]]:
         """Compute list of boundary lines to plot on plane.
 
@@ -1092,15 +1095,15 @@ class HeatChargeSimulation(AbstractSimulation):
     @equal_aspect
     @add_ax_if_none
     def plot_sources(
-            self,
-            x: float = None,
-            y: float = None,
-            z: float = None,
-            property: str = "heat_conductivity",
-            hlim: Tuple[float, float] = None,
-            vlim: Tuple[float, float] = None,
-            alpha: float = None,
-            ax: Ax = None,
+        self,
+        x: float = None,
+        y: float = None,
+        z: float = None,
+        property: str = "heat_conductivity",
+        hlim: Tuple[float, float] = None,
+        vlim: Tuple[float, float] = None,
+        alpha: float = None,
+        ax: Ax = None,
     ) -> Ax:
         """Plot each of simulation's sources on a plane defined by one nonzero x,y,z coordinate.
 
@@ -1226,11 +1229,11 @@ class HeatChargeSimulation(AbstractSimulation):
         return rate_min, rate_max
 
     def _get_structure_source_plot_params(
-            self,
-            source: HeatChargeSourceTypes,
-            source_min: float,
-            source_max: float,
-            alpha: float = None,
+        self,
+        source: HeatChargeSourceTypes,
+        source_min: float,
+        source_max: float,
+        alpha: float = None,
     ) -> PlotParams:
         """Constructs the plot parameters for a given medium in simulation.plot_eps()."""
 
@@ -1251,13 +1254,13 @@ class HeatChargeSimulation(AbstractSimulation):
         return plot_params
 
     def _plot_shape_structure_source(
-            self,
-            source: HeatChargeSourceTypes,
-            shape: Shapely,
-            source_min: float,
-            source_max: float,
-            ax: Ax,
-            alpha: float = None,
+        self,
+        source: HeatChargeSourceTypes,
+        shape: Shapely,
+        source_min: float,
+        source_max: float,
+        ax: Ax,
+        alpha: float = None,
     ) -> Ax:
         """Plot a structure's cross section shape for a given medium, grayscale for permittivity."""
         plot_params = self._get_structure_source_plot_params(

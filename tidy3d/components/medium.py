@@ -59,13 +59,13 @@ from .dispersion_fitter import (
 )
 from .geometry.base import Geometry
 from .grid.grid import Coords, Grid
-from .tcad.materials.heat import ThermalSpecType
-from .tcad.materials.charge import ElectricSpecType
 from .parameter_perturbation import (
     IndexPerturbation,
     ParameterPerturbation,
     PermittivityPerturbation,
 )
+from .tcad.materials.charge import ElectricSpecType
+from .tcad.materials.heat import ThermalSpecType
 from .time_modulation import ModulationSpec
 from .transformation import RotationType
 from .types import (

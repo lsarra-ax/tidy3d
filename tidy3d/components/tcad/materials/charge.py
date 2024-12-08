@@ -1,13 +1,22 @@
 from typing import Union
+
 import pydantic.v1 as pd
-from tidy3d.constants import PERMITTIVITY, CONDUCTIVITY, ELECTRON_VOLT
-from tidy3d.components.tcad.materials.abstract import AbstractHeatChargeSpec
-from tidy3d.components.tcad.types import BandGapModelTypes, MobilityModelTypes, RecombinationModelTypes
-from tidy3d.components.tcad.mobility import CaugheyThomasMobility
-from tidy3d.components.tcad.generation_recombination import ShockleyReedHallRecombination, AugerRecombination, \
-    RadiativeRecombination
-from tidy3d.components.tcad.bandgap import SlotboomNarrowingBandGap
+
 from tidy3d.components.data.data_array import SpatialDataArray
+from tidy3d.components.tcad.bandgap import SlotboomNarrowingBandGap
+from tidy3d.components.tcad.generation_recombination import (
+    AugerRecombination,
+    RadiativeRecombination,
+    ShockleyReedHallRecombination,
+)
+from tidy3d.components.tcad.materials.abstract import AbstractHeatChargeSpec
+from tidy3d.components.tcad.mobility import CaugheyThomasMobility
+from tidy3d.components.tcad.types import (
+    BandGapModelTypes,
+    MobilityModelTypes,
+    RecombinationModelTypes,
+)
+from tidy3d.constants import CONDUCTIVITY, ELECTRON_VOLT, PERMITTIVITY
 
 
 class ChargeSpec(AbstractHeatChargeSpec):

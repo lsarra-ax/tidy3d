@@ -1,10 +1,13 @@
 """
 This class defines standard SPICE analysis types (electrical simulations configurations).
 """
-import pydantic.v1 as pd
+
 from typing import Optional
+
+import pydantic.v1 as pd
+
 from tidy3d.components.base import Tidy3dBaseModel
-from tidy3d.components.spice.sources.dc import StaticTransferSourceDC, MultiStaticTransferSourceDC
+from tidy3d.components.spice.sources.dc import MultiStaticTransferSourceDC, StaticTransferSourceDC
 
 
 class OperatingPointDC(Tidy3dBaseModel):
@@ -31,21 +34,22 @@ class TransferFunctionDC(Tidy3dBaseModel):
     >>> import tidy3d as td
     >>> charge_settings = td.ChargeToleranceSpec(abs_tol=1e8, rel_tol=1e-10, max_iters=30)
     """
+
     sources: StaticTransferSourceDC | MultiStaticTransferSourceDC = []
 
     absolute_tolerance: Optional[pd.PositiveFloat] = pd.Field(
         default=1e10,
         title="Absolute tolerance.",
         description="Absolute tolerance used as stop criteria when converging towards a solution. Should be equivalent to the"
-                    "SPICE ABSTOL DC transfer parameter. TODO MARC units, TODO check equivalence. TODO what does this mean?",
+        "SPICE ABSTOL DC transfer parameter. TODO MARC units, TODO check equivalence. TODO what does this mean?",
     )
 
     relative_tolerance: Optional[pd.PositiveFloat] = pd.Field(
         default=1e-10,
         title="Relative tolerance.",
         description="Relative tolerance used as stop criteria when converging towards a solution.  Should be equivalent to the"
-                    "SPICE RELTOL DC transfer parameter. TODO MARC units, TODO check equivalence. TODO what does this "
-                    "mean?",
+        "SPICE RELTOL DC transfer parameter. TODO MARC units, TODO check equivalence. TODO what does this "
+        "mean?",
     )
 
     dc_iteration_limit: Optional[pd.PositiveInt] = pd.Field(
@@ -54,6 +58,5 @@ class TransferFunctionDC(Tidy3dBaseModel):
         description="Indicates the maximum number of iterations to be run. "
         "The solver will stop either when this maximum of iterations is met "
         "or when the tolerance criteria has been met. Should be equivalent to the ngspice ITL1 parameter. TODO units, "
-                    "TODO devsim ngspice equivalence",
+        "TODO devsim ngspice equivalence",
     )
-

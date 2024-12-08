@@ -8,17 +8,16 @@ from typing import Tuple
 
 import numpy as np
 import pydantic.v1 as pd
+
 from tidy3d.components.base import Tidy3dBaseModel, cached_property
 from tidy3d.components.base_sim.data.monitor_data import AbstractMonitorData
 from tidy3d.components.data.data_array import SpatialDataArray
-from tidy3d.components.types import Coordinate, ScalarSymmetry
 from tidy3d.components.data.dataset import (
     FieldDatasetTypes,
     IndexedDataArray,
 )
-from tidy3d.components.tcad.types import (
-    HeatChargeMonitorTypes
-)
+from tidy3d.components.tcad.types import HeatChargeMonitorTypes
+from tidy3d.components.types import Coordinate, ScalarSymmetry
 
 
 class HeatChargeMonitorData(AbstractMonitorData, ABC):
@@ -151,4 +150,3 @@ class HeatChargeDataset(Tidy3dBaseModel):
         assert len(field_series) == len(parameter_array)
 
         return values
-

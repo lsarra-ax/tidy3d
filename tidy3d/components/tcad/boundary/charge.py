@@ -1,7 +1,9 @@
 from typing import Tuple, Union
+
 import pydantic.v1 as pd
-from tidy3d.constants import VOLT, CURRENT_DENSITY
+
 from tidy3d.components.tcad.boundary.abstract import HeatChargeBC
+from tidy3d.constants import CURRENT_DENSITY, VOLT
 
 
 class VoltageBC(HeatChargeBC):
