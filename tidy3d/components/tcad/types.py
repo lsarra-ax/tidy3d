@@ -7,6 +7,8 @@ from tidy3d.components.tcad.mobility import CaugheyThomasMobility
 from tidy3d.components.tcad.generation_recombination import AugerRecombination, RadiativeRecombination, \
     ShockleyReedHallRecombination
 from tidy3d.components.tcad.bandgap import SlotboomNarrowingBandGap
+from tidy3d.components.tcad.boundary.heat import TemperatureBC, HeatFluxBC, ConvectionBC
+from tidy3d.components.tcad.boundary.charge import VoltageBC, CurrentBC, InsulatingBC
 
 # types of monitors that are accepted by heat simulation
 HeatChargeMonitorType = Union[
@@ -15,12 +17,22 @@ HeatChargeMonitorType = Union[
     FreeCarrierMonitor,
     CapacitanceMonitor,
 ]
+ChargeMonitorType = (VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor)
+HeatChargeMonitorDataType = Union[
+    TemperatureData, VoltageData, PotentialData, FreeCarrierData, CapacitanceData
+]
+
+FieldDataset = Union[
+    SpatialDataArray, annotate_type(Union[TriangularGridDataset, TetrahedralGridDataset])
+]
 
 HeatChargeSourceType = Union[
     HeatSource,
     HeatFromElectricSource,
     UniformHeatSource
 ]
+ChargeSourceTypes = None
+HeatSourceTypes = (UniformHeatSource, HeatSource, HeatFromElectricSource)
 
 MobilityModelType = Union[
     CaugheyThomasMobility
@@ -34,12 +46,8 @@ BandGapModelType = Union[
     SlotboomNarrowingBandGap
 ]
 
-ChargeRegimeType = Union[DCSpec]
-
 HeatBCTypes = (TemperatureBC, HeatFluxBC, ConvectionBC)
 ElectricBCTypes = (VoltageBC, CurrentBC, InsulatingBC)
-HeatSourceTypes = (UniformHeatSource, HeatSource, HeatFromElectricSource)
-ChargeSourceTypes = ()
 
 
 class HeatChargeSimulationType(str, Enum):

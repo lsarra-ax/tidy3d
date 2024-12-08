@@ -134,7 +134,9 @@ from .components.grid.grid_spec import (
     GridSpec,
     UniformGrid,
 )
-from tidy3d.components.tcad.boundary.boundary import (
+
+# tcad
+from tidy3d.components.tcad import (
     ConvectionBC,
     CurrentBC,
     HeatBoundarySpec,
@@ -143,36 +145,30 @@ from tidy3d.components.tcad.boundary.boundary import (
     InsulatingBC,
     TemperatureBC,
     VoltageBC,
-)
-from tidy3d.components.tcad.simulation.charge_settings import (
     AugerRecombination,
     CaugheyThomasMobility,
-    ChargeToleranceSpec,
-    DCSpec,
     RadiativeRecombination,
-    SlotboomNarrowingModel,
-    SRHRecombination,
-)
-from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid
-from tidy3d.components.tcad.simulation.simulation import HeatSimulation
-from tidy3d.components.tcad.monitors.monitor import (
+    SlotboomNarrowingBandGap,
+    ShockleyReedHallRecombination,
+    DistanceUnstructuredGrid,
+    UniformUnstructuredGrid,
+    HeatSimulation,
     CapacitanceMonitor,
     FreeCarrierMonitor,
     TemperatureMonitor,
     VoltageMonitor,
-)
-from tidy3d.components.tcad.data.monitor_data import (
     CapacitanceData,
     FreeCarrierData,
     PotentialData,
     TemperatureData,
     VoltageData,
+    HeatChargeSimulationData,
+    HeatSimulationData,
+    HeatFromElectricSource,
+    HeatSource,
+    UniformHeatSource
 )
-from tidy3d.components.tcad.data.sim_data import HeatChargeSimulationData, HeatSimulationData
-from tidy3d.components.tcad.source.source import HeatFromElectricSource, HeatSource, UniformHeatSource
 
-# heat
-# heat
 
 # lumped elements
 from .components.lumped_element import (
@@ -253,7 +249,6 @@ from .components.parameter_perturbation import (
 # run time spec
 from .components.run_time_spec import RunTimeSpec
 
-# scene
 # scene
 from .components.scene import Scene
 

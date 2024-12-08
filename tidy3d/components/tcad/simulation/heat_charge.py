@@ -28,17 +28,21 @@ from tidy3d.components.scene import Scene
 from tidy3d.components.structure import Structure
 from tidy3d.components.types import TYPE_TAG_STR, Ax, Bound, ScalarSymmetry, Shapely, annotate_type
 from tidy3d.components.viz import PlotParams, add_ax_if_none, equal_aspect
-from tidy3d.components.tcad.boundary.boundary import (
-    ConvectionBC,
+from tidy3d.components.tcad.boundary.charge import (
     CurrentBC,
-    HeatBoundarySpec,
-    HeatChargeBoundarySpec,
-    HeatFluxBC,
     InsulatingBC,
-    TemperatureBC,
     VoltageBC,
 )
-from tidy3d.components.tcad.simulation.charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
+from tidy3d.components.tcad.boundary.heat import (
+    ConvectionBC,
+    HeatFluxBC,
+    TemperatureBC,
+)
+from tidy3d.components.tcad.boundary.specification import (
+    HeatBoundarySpec,
+    HeatChargeBoundarySpec,
+)
+# from tidy3d.components.tcad.simulation.charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
 from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
 from tidy3d.components.tcad.monitors.monitor import (
     CapacitanceMonitor,
@@ -47,7 +51,21 @@ from tidy3d.components.tcad.monitors.monitor import (
     TemperatureMonitor,
     VoltageMonitor,
 )
-from tidy3d.components.tcad.source.source import (
+from tidy3d.components.tcad.source.heat import (
+    GlobalHeatChargeSource,
+    HeatChargeSourceType,
+    HeatFromElectricSource,
+    HeatSource,
+    UniformHeatSource,
+)
+from tidy3d.components.tcad.source.coupled import (
+    GlobalHeatChargeSource,
+    HeatFromElectricSource,
+)
+from tidy3d.components.tcad.types import (
+    HeatChargeSourceType,
+)
+from tidy3d.components.tcad.source.heat import (
     GlobalHeatChargeSource,
     HeatChargeSourceType,
     HeatFromElectricSource,
@@ -63,6 +81,7 @@ from tidy3d.components.tcad.viz import (
     plot_params_heat_bc,
     plot_params_heat_source,
 )
+from tidy3d.components.spice.types import ElectricalAnalysisTypes
 
 HEAT_CHARGE_BACK_STRUCTURE_STR = "<<<HEAT_CHARGE_BACKGROUND_STRUCTURE>>>"
 
@@ -163,16 +182,20 @@ class HeatChargeSimulation(AbstractSimulation):
         "Each element can be ``0`` (symmetry off) or ``1`` (symmetry on).",
     )
 
-    charge_tolerance: ChargeToleranceType = pd.Field(
+    electrical_analysis: ElectricalAnalysisTypes  = pd.Field(
         ChargeToleranceSpec(), title="Charge settings.", description="Some Charge settings."
     )
 
-    charge_regime: Optional[ChargeRegimeType] = pd.Field(
-        None,
-        title="Charge regime.",
-        description="Determined the regime in a Charge simulation. Currently it "
-        "accepts DCSpec (for DC simulations) only.",
-    )
+    # charge_tolerance: ChargeToleranceType = pd.Field(
+    #     ChargeToleranceSpec(), title="Charge settings.", description="Some Charge settings."
+    # )
+    #
+    # charge_regime: Optional[ChargeRegimeType] = pd.Field(
+    #     None,
+    #     title="Charge regime.",
+    #     description="Determined the regime in a Charge simulation. Currently it "
+    #     "accepts DCSpec (for DC simulations) only.",
+    # )
 
     @pd.validator("structures", always=True)
     def check_unsupported_geometries(cls, val):
@@ -366,8 +389,6 @@ class HeatChargeSimulation(AbstractSimulation):
     @pd.root_validator(skip_on_failure=True)
     def check_charge_simulation(cls, values):
         """Makes sure that CHARGE simulations are set correctly."""
-
-        ChargeMonitorType = (VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor)
 
         simulation_types = cls._check_simulation_types(values=values)
 
