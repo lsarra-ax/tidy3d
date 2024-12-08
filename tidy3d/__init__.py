@@ -294,6 +294,12 @@ from tidy3d.components.tcad.grid import (
     DistanceUnstructuredGrid,
     UniformUnstructuredGrid,
 )
+from tidy3d.components.tcad.materials.charge import (
+    ElectricSpecType, InsulatorSpec, ConductorSpec, SemiConductorSpec
+)
+from tidy3d.components.tcad.materials.heat import (
+    ThermalSpecType, FluidSpec, SolidSpec
+)
 from tidy3d.components.tcad.mobility import (
     CaugheyThomasMobility
 )
