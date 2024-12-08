@@ -13,6 +13,14 @@ from tidy3d.components.tcad.monitors.charge import (
     FreeCarrierMonitor,
     VoltageMonitor,
 )
+from tidy3d.components.tcad.data.monitor_data.abstract import (
+    HeatChargeMonitorData,
+    HeatChargeDataset
+)
+from tidy3d.components.tcad.data.monitor_data.abstract import (
+    FieldDatasetTypes
+)
+
 
 class PotentialData(HeatChargeMonitorData):
     """Class that stores electric potential from a charge simulation."""
@@ -175,7 +183,7 @@ class VoltageData(HeatChargeMonitorData):
         ..., title="Monitor", description="Electric potential monitor associated with the data."
     )
 
-    voltage: Optional[FieldDataset] = pd.Field(
+    voltage: Optional[FieldDatasetTypes] = pd.Field(
         ...,
         title="Voltage (electric potential)",
         description="Spatial electric potential field.",
@@ -210,4 +218,3 @@ class VoltageData(HeatChargeMonitorData):
 
         new_phi = self._symmetry_expanded_copy(property=self.voltage)
         return self.updated_copy(voltage=new_phi, symmetry=(0, 0, 0))
-

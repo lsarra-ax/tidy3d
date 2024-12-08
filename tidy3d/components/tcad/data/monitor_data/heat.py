@@ -12,7 +12,7 @@ from tidy3d.components.tcad.monitors.heat import (
     TemperatureMonitor
 )
 from tidy3d.components.tcad.data.monitor_data.abstract import HeatChargeMonitorData
-from tidy3d.components.tcad.types import FieldDataset
+from tidy3d.components.data.dataset import FieldDatasetTypes
 
 
 class TemperatureData(HeatChargeMonitorData):
@@ -36,7 +36,7 @@ class TemperatureData(HeatChargeMonitorData):
         ..., title="Monitor", description="Temperature monitor associated with the data."
     )
 
-    temperature: Optional[FieldDataset] = pd.Field(
+    temperature: Optional[FieldDatasetTypes] = pd.Field(
         ...,
         title="Temperature",
         description="Spatial temperature field.",

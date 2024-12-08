@@ -1,5 +1,14 @@
+from typing import Union
 import pydantic.v1 as pd
-from tidy3d.constants import PERMITTIVITY
+from tidy3d.constants import PERMITTIVITY, CONDUCTIVITY, ELECTRON_VOLT
+from tidy3d.components.tcad.materials.abstract import AbstractHeatChargeSpec
+from tidy3d.components.tcad.types import BandGapModelTypes, MobilityModelTypes, RecombinationModelTypes
+from tidy3d.components.tcad.mobility import CaugheyThomasMobility
+from tidy3d.components.tcad.generation_recombination import ShockleyReedHallRecombination, AugerRecombination, \
+    RadiativeRecombination
+from tidy3d.components.tcad.bandgap import SlotboomNarrowingBandGap
+from tidy3d.components.data.data_array import SpatialDataArray
+
 
 class ChargeSpec(AbstractHeatChargeSpec):
     """Abstract class for Charge specifications"""
@@ -75,20 +84,20 @@ class SemiConductorSpec(ConductorSpec):
         4.05, title="Electron affinity", description="Electron affinity", units=ELECTRON_VOLT
     )
 
-    mobility_model: MobilityModelType = pd.Field(
+    mobility_model: MobilityModelTypes = pd.Field(
         CaugheyThomasMobility(),
         title="Mobility model",
         description="Mobility model",
     )
 
-    recombination_model: Tuple[RecombinationModelType, ...] = pd.Field(
-        (SRHRecombination(), AugerRecombination(), RadiativeRecombination()),
+    recombination_model: tuple[RecombinationModelTypes, ...] = pd.Field(
+        (ShockleyReedHallRecombination(), AugerRecombination(), RadiativeRecombination()),
         title="Recombination models",
         description="Array containing the recombination models to be applied to the material.",
     )
 
-    bandgap_model: BandgapNarrowingModelType = pd.Field(
-        SlotboomNarrowingModel(),
+    bandgap_model: BandGapModelTypes = pd.Field(
+        SlotboomNarrowingBandGap(),
         title="Bandgap narrowing model.",
         description="Bandgap narrowing model.",
     )
@@ -106,3 +115,6 @@ class SemiConductorSpec(ConductorSpec):
         description="Units of 1/cm^3",
         units="1/cm^3",
     )
+
+
+ChargeMaterialTypes = ElectricSpecType = Union[InsulatorSpec, ConductorSpec, SemiConductorSpec]

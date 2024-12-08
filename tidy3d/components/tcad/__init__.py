@@ -81,6 +81,23 @@ from tidy3d.components.tcad.source.coupled import (
     HeatFromElectricSource,
     GlobalHeatChargeSource
 )
+from tidy3d.components.tcad.types import (
+    HeatChargeMonitorTypes,
+    HeatBCTypes,
+    ChargeSourceTypes,
+    ChargeMonitorTypes,
+    HeatSourceTypes,
+    ElectricBCTypes,
+    HeatChargeSimulationTypes,
+    HeatMaterialTypes,
+    ChargeMaterialTypes,
+    MobilityModelTypes,
+    RecombinationModelTypes,
+    BandGapModelTypes,
+    HeatChargeSourceTypes,
+    HeatChargeBCTypes,
+    HeatChargeBoundaryConditionTypes
+)
 
 # tcad
 # from tidy3d.components.tcad import (

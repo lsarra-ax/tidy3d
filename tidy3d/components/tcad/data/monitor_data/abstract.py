@@ -11,10 +11,10 @@ import pydantic.v1 as pd
 from tidy3d.components.base import Tidy3dBaseModel, cached_property
 from tidy3d.components.base_sim.data.monitor_data import AbstractMonitorData
 from tidy3d.components.data.data_array import SpatialDataArray
-from tidy3d.components.data.dataset import IndexedDataArray
 from tidy3d.components.types import Coordinate, ScalarSymmetry
-from tidy3d.components.tcad.data.types import (
-    FieldDataset
+from tidy3d.components.data.dataset import (
+    FieldDatasetTypes,
+    IndexedDataArray,
 )
 from tidy3d.components.tcad.types import (
     HeatChargeMonitorTypes
@@ -52,7 +52,7 @@ class HeatChargeMonitorData(AbstractMonitorData, ABC):
         """Gets the name of the fields to be plot."""
 
     # def _symmetry_expanded_copy(self, property):
-    def _symmetry_expanded_copy(self, property: FieldDataset) -> FieldDataset:
+    def _symmetry_expanded_copy(self, property: FieldDatasetTypes) -> FieldDatasetTypes:
         """Return the property with symmetry applied."""
 
         # no symmetry
@@ -120,7 +120,7 @@ class HeatChargeMonitorData(AbstractMonitorData, ABC):
 class HeatChargeDataset(Tidy3dBaseModel):
     """Class that deals with parameter-depending fields."""
 
-    base_data: FieldDataset = pd.Field(title="Base data", description="Spatial dataset")
+    base_data: FieldDatasetTypes = pd.Field(title="Base data", description="Spatial dataset")
 
     field_series: Tuple[IndexedDataArray, ...] = pd.Field(
         title="Field series", description="Tuple of field solutions. "

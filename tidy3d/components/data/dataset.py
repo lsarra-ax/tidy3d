@@ -511,7 +511,7 @@ class TriangleMeshDataset(Dataset):
         ...,
         title="Surface mesh data",
         description="Dataset containing the surface triangles and corresponding face indices "
-        "for a surface mesh.",
+                    "for a surface mesh.",
     )
 
 
@@ -542,7 +542,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         ...,
         title="Grid Cells",
         description="Cells composing the unstructured grid specified as connections between grid "
-        "points.",
+                    "points.",
     )
 
     @property
@@ -661,7 +661,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
                 raise ValidationError(
                     "Cell connections array uses undefined point indices in the range "
                     f"[{min_index_used}, {max_index_used}]. The valid range of point indices is "
-                    f"[0, {num_points-1}]."
+                    f"[0, {num_points - 1}]."
                 )
         return val
 
@@ -698,7 +698,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
 
     @classmethod
     def _remove_unused_points(
-        cls, points: PointDataArray, values: IndexedDataArray, cells: CellDataArray
+            cls, points: PointDataArray, values: IndexedDataArray, cells: CellDataArray
     ):
         """Remove unused points if any.
         That is, points that are not used in any grid cell.
@@ -947,7 +947,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
     @abstractmethod
     @requires_vtk
     def plane_slice(
-        self, axis: Axis, pos: float
+            self, axis: Axis, pos: float
     ) -> Union[SpatialDataArray, UnstructuredGridDataset]:
         """Slice data with a plane and return the Tidy3D representation of the result
         (``UnstructuredGridDataset``).
@@ -980,22 +980,22 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
     @abstractmethod
     @requires_vtk
     def _from_vtk_obj(
-        cls,
-        vtk_obj,
-        field: str = None,
-        remove_degenerate_cells: bool = False,
-        remove_unused_points: bool = False,
+            cls,
+            vtk_obj,
+            field: str = None,
+            remove_degenerate_cells: bool = False,
+            remove_unused_points: bool = False,
     ) -> UnstructuredGridDataset:
         """Initialize from a vtk object."""
 
     @classmethod
     @requires_vtk
     def from_vtu(
-        cls,
-        file: str,
-        field: str = None,
-        remove_degenerate_cells: bool = False,
-        remove_unused_points: bool = False,
+            cls,
+            file: str,
+            field: str = None,
+            remove_degenerate_cells: bool = False,
+            remove_unused_points: bool = False,
     ) -> UnstructuredGridDataset:
         """Load unstructured data from a vtu file.
 
@@ -1041,7 +1041,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
     @classmethod
     @requires_vtk
     def _get_values_from_vtk(
-        cls, vtk_obj, num_points: pd.PositiveInt, field: str = None
+            cls, vtk_obj, num_points: pd.PositiveInt, field: str = None
     ) -> IndexedDataArray:
         """Get point data values from a VTK object."""
 
@@ -1145,16 +1145,16 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         )
 
     def interp(
-        self,
-        x: Union[float, ArrayLike],
-        y: Union[float, ArrayLike],
-        z: Union[float, ArrayLike],
-        fill_value: Union[float, Literal["extrapolate"]] = None,
-        use_vtk: bool = False,
-        method: Literal["linear", "nearest"] = "linear",
-        max_samples_per_step: int = DEFAULT_MAX_SAMPLES_PER_STEP,
-        max_cells_per_step: int = DEFAULT_MAX_CELLS_PER_STEP,
-        rel_tol: float = DEFAULT_TOLERANCE_CELL_FINDING,
+            self,
+            x: Union[float, ArrayLike],
+            y: Union[float, ArrayLike],
+            z: Union[float, ArrayLike],
+            fill_value: Union[float, Literal["extrapolate"]] = None,
+            use_vtk: bool = False,
+            method: Literal["linear", "nearest"] = "linear",
+            max_samples_per_step: int = DEFAULT_MAX_SAMPLES_PER_STEP,
+            max_cells_per_step: int = DEFAULT_MAX_CELLS_PER_STEP,
+            rel_tol: float = DEFAULT_TOLERANCE_CELL_FINDING,
     ) -> SpatialDataArray:
         """Interpolate data at provided x, y, and z.
 
@@ -1236,10 +1236,10 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         )
 
     def _interp_nearest(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
     ) -> ArrayLike:
         """Interpolate data at provided x, y, and z using Scipy's nearest neighbor interpolator.
 
@@ -1267,11 +1267,11 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         return values
 
     def _fill_nans_from_nearests(
-        self,
-        values: ArrayLike,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
+            self,
+            values: ArrayLike,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
     ) -> ArrayLike:
         """Replace nan's in ``values`` with nearest data points.
 
@@ -1308,11 +1308,11 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
 
     @requires_vtk
     def _interp_vtk(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
-        fill_value: float,
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
+            fill_value: float,
     ) -> ArrayLike:
         """Interpolate data at provided x, y, and z using vtk package.
 
@@ -1367,14 +1367,14 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
 
     @abstractmethod
     def _interp_py(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
-        fill_value: float,
-        max_samples_per_step: int,
-        max_cells_per_step: int,
-        rel_tol: float,
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
+            fill_value: float,
+            max_samples_per_step: int,
+            max_cells_per_step: int,
+            rel_tol: float,
     ) -> ArrayLike:
         """Dimensionality-specific function (2D and 3D) to interpolate data at provided x, y, and z
         using vectorized python implementation.
@@ -1407,15 +1407,15 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         """
 
     def _interp_py_general(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
-        fill_value: float,
-        max_samples_per_step: int,
-        max_cells_per_step: int,
-        rel_tol: float,
-        axis_ignore: Union[Axis, None],
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
+            fill_value: float,
+            max_samples_per_step: int,
+            max_cells_per_step: int,
+            rel_tol: float,
+            axis_ignore: Union[Axis, None],
     ) -> ArrayLike:
         """A general function (2D and 3D) to interpolate data at provided x, y, and z using
         vectorized python implementation.
@@ -1500,8 +1500,8 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
             )
 
             connections_to_process = cell_connections[
-                processed_cells_global:target_processed_cells_global
-            ]
+                                     processed_cells_global:target_processed_cells_global
+                                     ]
 
             # now we transfer this information to each cell. That is, each cell knows how its vertices
             # positioned relative to Cartesian grid points.
@@ -1558,7 +1558,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
                 # find how many cells we can processed based on number of allowed samples
                 target_processed_samples = processed_samples + max_samples_per_step
                 target_processed_cells_from_samples = (
-                    np.searchsorted(cum_num_samples_per_ne_cell, target_processed_samples) + 1
+                        np.searchsorted(cum_num_samples_per_ne_cell, target_processed_samples) + 1
                 )
 
                 # take min between the two
@@ -1604,12 +1604,12 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         return interpolated_values
 
     def _interp_py_chunk(
-        self,
-        xyz_grid: Tuple[ArrayLike[float], ...],
-        cell_inds: ArrayLike[int],
-        cell_ind_min: ArrayLike[int],
-        cell_ind_max: ArrayLike[int],
-        sdf_tol: float,
+            self,
+            xyz_grid: Tuple[ArrayLike[float], ...],
+            cell_inds: ArrayLike[int],
+            cell_ind_min: ArrayLike[int],
+            cell_ind_max: ArrayLike[int],
+            sdf_tol: float,
     ) -> Tuple[Tuple[ArrayLike, ...], ArrayLike]:
         """For each cell listed in ``cell_inds`` perform interpolation at a rectilinear subarray of
         xyz_grid given by a (3D) index span (cell_ind_min, cell_ind_max).
@@ -1674,7 +1674,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
         # one big arange array
         inds_flat = np.arange(num_samples_total)
         # now subtract previous number of samples
-        inds_flat[num_samples_per_cell[0] :] -= np.repeat(
+        inds_flat[num_samples_per_cell[0]:] -= np.repeat(
             num_samples_cumul[:-1], num_samples_per_cell[1:]
         )
 
@@ -1839,10 +1839,10 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
     @abstractmethod
     @requires_vtk
     def sel(
-        self,
-        x: Union[float, ArrayLike] = None,
-        y: Union[float, ArrayLike] = None,
-        z: Union[float, ArrayLike] = None,
+            self,
+            x: Union[float, ArrayLike] = None,
+            y: Union[float, ArrayLike] = None,
+            z: Union[float, ArrayLike] = None,
     ) -> Union[UnstructuredGridDataset, SpatialDataArray]:
         """Extract/interpolate data along one or more Cartesian directions. At least of x, y, and z
         must be provided.
@@ -1954,7 +1954,7 @@ class UnstructuredGridDataset(Dataset, np.lib.mixins.NDArrayOperatorsMixin, ABC)
 
     @requires_vtk
     def reflect(
-        self, axis: Axis, center: float, reflection_only: bool = False
+            self, axis: Axis, center: float, reflection_only: bool = False
     ) -> UnstructuredGridDataset:
         """Reflect unstructured data across the plane define by parameters ``axis`` and ``center``.
         By default the original data is preserved, setting ``reflection_only`` to ``True`` will
@@ -2067,11 +2067,11 @@ class TriangularGridDataset(UnstructuredGridDataset):
     @classmethod
     @requires_vtk
     def _from_vtk_obj(
-        cls,
-        vtk_obj,
-        field=None,
-        remove_degenerate_cells: bool = False,
-        remove_unused_points: bool = False,
+            cls,
+            vtk_obj,
+            field=None,
+            remove_degenerate_cells: bool = False,
+            remove_unused_points: bool = False,
     ):
         """Initialize from a vtkUnstructuredGrid instance."""
 
@@ -2200,17 +2200,17 @@ class TriangularGridDataset(UnstructuredGridDataset):
     @equal_aspect
     @add_ax_if_none
     def plot(
-        self,
-        ax: Ax = None,
-        field: bool = True,
-        grid: bool = True,
-        cbar: bool = True,
-        cmap: str = "viridis",
-        vmin: float = None,
-        vmax: float = None,
-        shading: Literal["gourand", "flat"] = "gouraud",
-        cbar_kwargs: Dict = None,
-        pcolor_kwargs: Dict = None,
+            self,
+            ax: Ax = None,
+            field: bool = True,
+            grid: bool = True,
+            cbar: bool = True,
+            cmap: str = "viridis",
+            vmin: float = None,
+            vmax: float = None,
+            shading: Literal["gourand", "flat"] = "gouraud",
+            cbar_kwargs: Dict = None,
+            pcolor_kwargs: Dict = None,
     ) -> Ax:
         """Plot the data field and/or the unstructured grid.
 
@@ -2285,17 +2285,17 @@ class TriangularGridDataset(UnstructuredGridDataset):
         return ax
 
     def interp(
-        self,
-        x: Union[float, ArrayLike],
-        y: Union[float, ArrayLike],
-        z: Union[float, ArrayLike],
-        fill_value: Union[float, Literal["extrapolate"]] = None,
-        use_vtk: bool = False,
-        method: Literal["linear", "nearest"] = "linear",
-        ignore_normal_pos: bool = True,
-        max_samples_per_step: int = DEFAULT_MAX_SAMPLES_PER_STEP,
-        max_cells_per_step: int = DEFAULT_MAX_CELLS_PER_STEP,
-        rel_tol: float = DEFAULT_TOLERANCE_CELL_FINDING,
+            self,
+            x: Union[float, ArrayLike],
+            y: Union[float, ArrayLike],
+            z: Union[float, ArrayLike],
+            fill_value: Union[float, Literal["extrapolate"]] = None,
+            use_vtk: bool = False,
+            method: Literal["linear", "nearest"] = "linear",
+            ignore_normal_pos: bool = True,
+            max_samples_per_step: int = DEFAULT_MAX_SAMPLES_PER_STEP,
+            max_cells_per_step: int = DEFAULT_MAX_CELLS_PER_STEP,
+            rel_tol: float = DEFAULT_TOLERANCE_CELL_FINDING,
     ) -> SpatialDataArray:
         """Interpolate data at provided x, y, and z. Note that data is assumed to be invariant along
         the dataset's normal direction.
@@ -2373,14 +2373,14 @@ class TriangularGridDataset(UnstructuredGridDataset):
         )
 
     def _interp_py(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
-        fill_value: float,
-        max_samples_per_step: int,
-        max_cells_per_step: int,
-        rel_tol: float,
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
+            fill_value: float,
+            max_samples_per_step: int,
+            max_cells_per_step: int,
+            rel_tol: float,
     ) -> ArrayLike:
         """2D-specific function to interpolate data at provided x, y, and z
         using vectorized python implementation.
@@ -2425,10 +2425,10 @@ class TriangularGridDataset(UnstructuredGridDataset):
 
     @requires_vtk
     def sel(
-        self,
-        x: Union[float, ArrayLike] = None,
-        y: Union[float, ArrayLike] = None,
-        z: Union[float, ArrayLike] = None,
+            self,
+            x: Union[float, ArrayLike] = None,
+            y: Union[float, ArrayLike] = None,
+            z: Union[float, ArrayLike] = None,
     ) -> SpatialDataArray:
         """Extract/interpolate data along one or more Cartesian directions. At least of x, y, and z
         must be provided.
@@ -2480,7 +2480,7 @@ class TriangularGridDataset(UnstructuredGridDataset):
 
     @requires_vtk
     def reflect(
-        self, axis: Axis, center: float, reflection_only: bool = False
+            self, axis: Axis, center: float, reflection_only: bool = False
     ) -> UnstructuredGridDataset:
         """Reflect unstructured data across the plane define by parameters ``axis`` and ``center``.
         By default the original data is preserved, setting ``reflection_only`` to ``True`` will
@@ -2624,11 +2624,11 @@ class TetrahedralGridDataset(UnstructuredGridDataset):
     @classmethod
     @requires_vtk
     def _from_vtk_obj(
-        cls,
-        grid,
-        field=None,
-        remove_degenerate_cells: bool = False,
-        remove_unused_points: bool = False,
+            cls,
+            grid,
+            field=None,
+            remove_degenerate_cells: bool = False,
+            remove_unused_points: bool = False,
     ) -> TetrahedralGridDataset:
         """Initialize from a vtkUnstructuredGrid instance."""
 
@@ -2754,10 +2754,10 @@ class TetrahedralGridDataset(UnstructuredGridDataset):
 
     @requires_vtk
     def sel(
-        self,
-        x: Union[float, ArrayLike] = None,
-        y: Union[float, ArrayLike] = None,
-        z: Union[float, ArrayLike] = None,
+            self,
+            x: Union[float, ArrayLike] = None,
+            y: Union[float, ArrayLike] = None,
+            z: Union[float, ArrayLike] = None,
     ) -> Union[TriangularGridDataset, SpatialDataArray]:
         """Extract/interpolate data along one or more Cartesian directions. At least of x, y, and z
         must be provided.
@@ -2804,14 +2804,14 @@ class TetrahedralGridDataset(UnstructuredGridDataset):
             return self.interp(x=x, y=y, z=z)
 
     def _interp_py(
-        self,
-        x: ArrayLike,
-        y: ArrayLike,
-        z: ArrayLike,
-        fill_value: float,
-        max_samples_per_step: int,
-        max_cells_per_step: int,
-        rel_tol: float,
+            self,
+            x: ArrayLike,
+            y: ArrayLike,
+            z: ArrayLike,
+            fill_value: float,
+            max_samples_per_step: int,
+            max_cells_per_step: int,
+            rel_tol: float,
     ) -> ArrayLike:
         """3D-specific function to interpolate data at provided x, y, and z
         using vectorized python implementation.
@@ -2858,6 +2858,9 @@ class TetrahedralGridDataset(UnstructuredGridDataset):
 UnstructuredGridDatasetType = Union[TriangularGridDataset, TetrahedralGridDataset]
 CustomSpatialDataType = Union[SpatialDataArray, UnstructuredGridDatasetType]
 CustomSpatialDataTypeAnnotated = Union[SpatialDataArray, annotate_type(UnstructuredGridDatasetType)]
+FieldDatasetTypes = Union[
+    SpatialDataArray, annotate_type(Union[TriangularGridDataset, TetrahedralGridDataset])
+]
 
 
 def _get_numpy_array(data_array: Union[ArrayLike, DataArray, UnstructuredGridDataset]) -> ArrayLike:
@@ -2870,7 +2873,7 @@ def _get_numpy_array(data_array: Union[ArrayLike, DataArray, UnstructuredGridDat
 
 
 def _zeros_like(
-    data_array: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
+        data_array: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
 ) -> Union[ArrayLike, xr.DataArray, UnstructuredGridDataset]:
     """Get a zeroed replica of dataarray/dataset."""
     if isinstance(data_array, UnstructuredGridDataset):
@@ -2881,7 +2884,7 @@ def _zeros_like(
 
 
 def _ones_like(
-    data_array: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
+        data_array: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
 ) -> Union[ArrayLike, xr.DataArray, UnstructuredGridDataset]:
     """Get a unity replica of dataarray/dataset."""
     if isinstance(data_array, UnstructuredGridDataset):
@@ -2892,8 +2895,8 @@ def _ones_like(
 
 
 def _check_same_coordinates(
-    a: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
-    b: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
+        a: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
+        b: Union[ArrayLike, xr.DataArray, UnstructuredGridDataset],
 ) -> bool:
     """Check whether two array are defined at the same coordinates."""
 

@@ -46,9 +46,6 @@ HeatChargeBCTypes = HeatChargeBoundaryConditionTypes = Union[
     TemperatureBC, HeatFluxBC, ConvectionBC, VoltageBC, CurrentBC, InsulatingBC
 ]
 
-ThermalSpecType = Union[FluidSpec, SolidSpec]
-ElectricSpecType = Union[InsulatorSpec, ConductorSpec, SemiConductorSpec]
-
 class HeatChargeSimulationTypes(str, Enum):
     """Enumeration of the types of simulations currently supported"""
 

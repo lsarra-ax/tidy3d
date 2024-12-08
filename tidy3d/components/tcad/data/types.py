@@ -8,14 +8,7 @@ from tidy3d.components.tcad.data.monitor_data.charge import (
     FreeCarrierData,
     CapacitanceData
 )
-from tidy3d.components.tcad.data.monitor_data.abstract import (
-    SpatialDataArray,
-)
 
 HeatChargeMonitorDataTypes = Union[
     TemperatureData, VoltageData, PotentialData, FreeCarrierData, CapacitanceData
-]
-
-FieldDataset = FieldDatasetTypes = Union[
-    SpatialDataArray, annotate_type(Union[TriangularGridDataset, TetrahedralGridDataset])
 ]
