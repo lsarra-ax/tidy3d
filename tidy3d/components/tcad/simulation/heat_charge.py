@@ -40,7 +40,7 @@ from tidy3d.components.tcad.grid import (
     UniformUnstructuredGrid,
     UnstructuredGridType,
 )
-from tidy3d.components.tcad.materials.charge import ConductorSpec, SemiConductorSpec
+from tidy3d.components.tcad.materials.charge import SemiConductorSpec
 from tidy3d.components.tcad.materials.heat import SolidSpec
 from tidy3d.components.tcad.monitors.charge import (
     VoltageMonitor,
@@ -237,9 +237,10 @@ class HeatChargeSimulation(AbstractSimulation):
                 crosses_solid = any(
                     isinstance(medium.heat_spec, SolidSpec) for medium in medium_set
                 )
-                crosses_elec_spec = any(
-                    isinstance(medium.electric_spec, ConductorSpec) for medium in medium_set
-                )
+                # TODO new structure
+                # crosses_elec_spec = any(
+                #     isinstance(medium.electric_spec, ConductorSpec) for medium in medium_set
+                # )
             else:
                 # approximate check for volumetric objects based on bounding boxes
                 # thus, it could still miss a case when there is no data inside the monitor
@@ -248,16 +249,17 @@ class HeatChargeSimulation(AbstractSimulation):
                     for structure in total_structures
                     if isinstance(structure.medium.heat_spec, SolidSpec)
                 )
-                crosses_elec_spec = any(
-                    obj.intersects(structure.geometry)
-                    for structure in total_structures
-                    if isinstance(structure.medium.electric_spec, ConductorSpec)
-                )
+                # TODO new structure
+                # crosses_elec_spec = any(
+                #     obj.intersects(structure.geometry)
+                #     for structure in total_structures
+                #     if isinstance(structure.medium.electric_spec, ConductorSpec)
+                # )
 
             if not crosses_solid:
                 obj_do_not_cross_solid_idx.append(ind)
-            if not crosses_elec_spec:
-                obj_do_not_cross_cond_idx.append(ind)
+            # if not crosses_elec_spec:
+            #     obj_do_not_cross_cond_idx.append(ind)
 
         return obj_do_not_cross_solid_idx, obj_do_not_cross_cond_idx
 

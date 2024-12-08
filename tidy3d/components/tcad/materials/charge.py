@@ -87,4 +87,4 @@ class SemiConductorSpec(AbstractHeatChargeSpec):
     )
 
 
-ChargeMaterialTypes = ElectricSpecType = Union[SemiConductorSpec]
+ChargeMaterialTypes = ElectricSpecType = SemiConductorSpec

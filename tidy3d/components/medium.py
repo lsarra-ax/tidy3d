@@ -64,7 +64,6 @@ from .parameter_perturbation import (
     ParameterPerturbation,
     PermittivityPerturbation,
 )
-from .tcad.materials.charge import ElectricSpecType
 from .tcad.materials.heat import ThermalSpecType
 from .time_modulation import ModulationSpec
 from .transformation import RotationType
@@ -763,12 +762,12 @@ class AbstractMedium(ABC, Tidy3dBaseModel):
         discriminator=TYPE_TAG_STR,
     )
 
-    electric_spec: Optional[ElectricSpecType] = pd.Field(
-        None,
-        title="Electric Specification",
-        description="Specification of the medium electric properties.",
-        discriminator=TYPE_TAG_STR,
-    )
+    # electric_spec: SemiConductorSpec | None = pd.Field(
+    #     None,
+    #     title="Electric Specification",
+    #     description="Specification of the medium electric properties.",
+    #     discriminator=TYPE_TAG_STR,
+    # )
 
     @pd.validator("modulation_spec", always=True)
     @skip_if_fields_missing(["nonlinear_spec"])

@@ -656,7 +656,7 @@ class CustomCurrentSource(ReverseInterpolatedSource):
     >>> f = [2e14]
     >>> coords = dict(x=x, y=y, z=z, f=f)
     >>> scalar_field = ScalarFieldDataArray(np.ones((101, 101, 1, 1)), coords=coords)
-    >>> dataset = FieldDatasetTypes(Ex=scalar_field)
+    >>> dataset = FieldDataset(Ex=scalar_field)
     >>> custom_source = CustomCurrentSource(
     ...     center=(1, 1, 1),
     ...     size=(2, 2, 0),
@@ -673,7 +673,7 @@ class CustomCurrentSource(ReverseInterpolatedSource):
     current_dataset: Optional[FieldDataset] = pydantic.Field(
         ...,
         title="Current Dataset",
-        description=":class:`.FieldDatasetTypes` containing the desired frequency-domain "
+        description=":class:`.FieldDataset` containing the desired frequency-domain "
         "electric and magnetic current patterns to inject.",
     )
 
@@ -833,7 +833,7 @@ class CustomFieldSource(FieldSource, PlanarSource):
     >>> f = [2e14]
     >>> coords = dict(x=x, y=y, z=z, f=f)
     >>> scalar_field = ScalarFieldDataArray(np.ones((101, 101, 1, 1)), coords=coords)
-    >>> dataset = FieldDatasetTypes(Ex=scalar_field)
+    >>> dataset = FieldDataset(Ex=scalar_field)
     >>> custom_source = CustomFieldSource(
     ...     center=(1, 1, 1),
     ...     size=(2, 2, 0),
@@ -875,7 +875,7 @@ class CustomFieldSource(FieldSource, PlanarSource):
     field_dataset: Optional[FieldDataset] = pydantic.Field(
         ...,
         title="Field Dataset",
-        description=":class:`.FieldDatasetTypes` containing the desired frequency-domain "
+        description=":class:`.FieldDataset` containing the desired frequency-domain "
         "fields patterns to inject. At least one tangential field component must be specified.",
     )
 

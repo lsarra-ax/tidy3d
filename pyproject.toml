@@ -62,7 +62,8 @@ pytest-timeout = { version = "*", optional = true }
 tox = { version = "*", optional = true }
 
 # gdspy
-gdspy = { version = "*", optional = true }
+# TODO not installing properly for me why?
+#gdspy = { version = "*", optional = true }
 
 # gdstk
 gdstk = { version = ">=0.9.49", optional = true }

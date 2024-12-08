@@ -233,7 +233,7 @@ class FieldDataset(ElectromagneticFieldDataset):
     >>> f = [2e14, 3e14]
     >>> coords = dict(x=x, y=y, z=z, f=f)
     >>> scalar_field = ScalarFieldDataArray((1+1j) * np.random.random((2,3,4,2)), coords=coords)
-    >>> data = FieldDatasetTypes(Ex=scalar_field, Hz=scalar_field)
+    >>> data = FieldDataset(Ex=scalar_field, Hz=scalar_field)
     """
 
     Ex: ScalarFieldDataArray = pd.Field(
