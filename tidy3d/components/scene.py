@@ -10,7 +10,6 @@ import matplotlib.pylab as plt
 import pydantic.v1 as pd
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from tidy3d.components.tcad.materials.charge import ConductorSpec
 from tidy3d.components.tcad.materials.heat import SolidSpec
 
 from ..constants import CONDUCTIVITY, THERMAL_CONDUCTIVITY, inf
@@ -1352,11 +1351,12 @@ class Scene(Tidy3dBaseModel):
                 medium for medium in medium_list if isinstance(medium.heat_spec, SolidSpec)
             ]
             cond_list = [medium.heat_spec.conductivity for medium in medium_list]
-        elif property == "electric_conductivity":
-            medium_list = [
-                medium for medium in medium_list if isinstance(medium.electric_spec, ConductorSpec)
-            ]
-            cond_list = [medium.electric_spec.conductivity for medium in medium_list]
+        # TODO Replace with standard medium info.
+        # elif property == "electric_conductivity":
+        #     medium_list = [
+        #         medium for medium in medium_list if isinstance(medium.electric_spec, ConductorSpec)
+        #     ]
+        #     cond_list = [medium.electric_spec.conductivity for medium in medium_list]
 
         cond_min = min(cond_list)
         cond_max = max(cond_list)
@@ -1398,10 +1398,11 @@ class Scene(Tidy3dBaseModel):
         cond_medium = None
         if property == "heat_conductivity" and isinstance(medium.heat_spec, SolidSpec):
             cond_medium = medium.heat_spec.conductivity
-        elif property == "electric_conductivity" and isinstance(
-            medium.electric_spec, ConductorSpec
-        ):
-            cond_medium = medium.electric_spec.conductivity
+        # TODO replace with new standard medium conductivity.
+        # elif property == "electric_conductivity" and isinstance(
+        #     medium.electric_spec, ConductorSpec
+        # ):
+        #     cond_medium = medium.electric_spec.conductivity
 
         if cond_medium is not None:
             delta_cond = cond_medium - property_val_min
