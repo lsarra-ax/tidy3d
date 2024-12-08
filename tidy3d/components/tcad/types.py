@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Union
 from tidy3d.components.tcad.source.heat import HeatSource, UniformHeatSource
 from tidy3d.components.tcad.source.coupled import HeatFromElectricSource
@@ -10,23 +11,16 @@ from tidy3d.components.tcad.bandgap import SlotboomNarrowingBandGap
 from tidy3d.components.tcad.boundary.heat import TemperatureBC, HeatFluxBC, ConvectionBC
 from tidy3d.components.tcad.boundary.charge import VoltageBC, CurrentBC, InsulatingBC
 
+
 # types of monitors that are accepted by heat simulation
-HeatChargeMonitorType = Union[
+HeatChargeMonitorTypes = Union[
     TemperatureMonitor,
     VoltageMonitor,
     FreeCarrierMonitor,
     CapacitanceMonitor,
 ]
-ChargeMonitorType = (VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor)
-HeatChargeMonitorDataType = Union[
-    TemperatureData, VoltageData, PotentialData, FreeCarrierData, CapacitanceData
-]
-
-FieldDataset = Union[
-    SpatialDataArray, annotate_type(Union[TriangularGridDataset, TetrahedralGridDataset])
-]
-
-HeatChargeSourceType = Union[
+ChargeMonitorTypes = (VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor)
+HeatChargeSourceTypes = Union[
     HeatSource,
     HeatFromElectricSource,
     UniformHeatSource
@@ -34,23 +28,25 @@ HeatChargeSourceType = Union[
 ChargeSourceTypes = None
 HeatSourceTypes = (UniformHeatSource, HeatSource, HeatFromElectricSource)
 
-MobilityModelType = Union[
+MobilityModelTypes = Union[
     CaugheyThomasMobility
 ]
-RecombinationModelType = Union[
+RecombinationModelTypes = Union[
     AugerRecombination,
     RadiativeRecombination,
     ShockleyReedHallRecombination
 ]
-BandGapModelType = Union[
+BandGapModelTypes = Union[
     SlotboomNarrowingBandGap
 ]
 
 HeatBCTypes = (TemperatureBC, HeatFluxBC, ConvectionBC)
 ElectricBCTypes = (VoltageBC, CurrentBC, InsulatingBC)
+HeatChargeBCTypes = HeatChargeBoundaryConditionTypes = Union[
+    TemperatureBC, HeatFluxBC, ConvectionBC, VoltageBC, CurrentBC, InsulatingBC
+]
 
-
-class HeatChargeSimulationType(str, Enum):
+class HeatChargeSimulationTypes(str, Enum):
     """Enumeration of the types of simulations currently supported"""
 
     HEAT = "HEAT"

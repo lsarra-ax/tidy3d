@@ -14,14 +14,15 @@ from tidy3d.components.data.data_array import SpatialDataArray
 from tidy3d.components.data.dataset import IndexedDataArray
 from tidy3d.components.types import Coordinate, ScalarSymmetry
 from tidy3d.components.tcad.types import (
-    HeatChargeMonitorType
+    HeatChargeMonitorTypes,
+    FieldDataset
 )
 
 
 class HeatChargeMonitorData(AbstractMonitorData, ABC):
     """Abstract base class of objects that store data pertaining to a single :class:`HeatChargeMonitor`."""
 
-    monitor: HeatChargeMonitorType = pd.Field(
+    monitor: HeatChargeMonitorTypes = pd.Field(
         ...,
         title="Monitor",
         description="Monitor associated with the data.",

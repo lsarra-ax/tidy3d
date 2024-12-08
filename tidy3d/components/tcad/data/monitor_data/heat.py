@@ -11,6 +11,8 @@ from tidy3d.components.base import skip_if_fields_missing
 from tidy3d.components.tcad.monitors.heat import (
     TemperatureMonitor
 )
+from tidy3d.components.tcad.data.monitor_data.abstract import HeatChargeMonitorData
+from tidy3d.components.tcad.types import FieldDataset
 
 
 class TemperatureData(HeatChargeMonitorData):

@@ -1,3 +1,8 @@
+from typing import Tuple, Union
+import pydantic.v1 as pd
+from tidy3d.constants import VOLT, CURRENT_DENSITY
+from tidy3d.components.tcad.boundary.abstract import HeatChargeBC
+
 
 class VoltageBC(HeatChargeBC):
     """Electric potential (voltage) boundary condition.
@@ -43,4 +48,3 @@ class InsulatingBC(HeatChargeBC):
     -------
     >>> bc = InsulatingBC()
     """
-

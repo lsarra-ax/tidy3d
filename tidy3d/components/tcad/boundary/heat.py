@@ -1,16 +1,9 @@
 """Defines heat material specifications"""
 
 from __future__ import annotations
-
-from abc import ABC
-from typing import Tuple, Union
-
 import pydantic.v1 as pd
-
-from tidy3d.constants import CURRENT_DENSITY, HEAT_FLUX, HEAT_TRANSFER_COEFF, KELVIN, VOLT
-from tidy3d.components.base import Tidy3dBaseModel
-from tidy3d.components.bc_placement import BCPlacementType
-from tidy3d.components.types import TYPE_TAG_STR
+from tidy3d.constants import HEAT_FLUX, HEAT_TRANSFER_COEFF, KELVIN
+from tidy3d.components.tcad.boundary.abstract import HeatChargeBC
 
 
 class TemperatureBC(HeatChargeBC):

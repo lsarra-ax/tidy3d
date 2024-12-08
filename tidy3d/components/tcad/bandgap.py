@@ -1,4 +1,5 @@
 import pydantic.v1 as pd
+from tidy3d.constants import VOLT
 from tidy3d.components.base import Tidy3dBaseModel
 
 # Band-gap narrowing models
