@@ -1,3 +1,6 @@
+import pydantic.v1 as pd
+from tidy3d.constants import PERMITTIVITY
+
 class ChargeSpec(AbstractHeatChargeSpec):
     """Abstract class for Charge specifications"""
 
@@ -103,7 +106,3 @@ class SemiConductorSpec(ConductorSpec):
         description="Units of 1/cm^3",
         units="1/cm^3",
     )
-
-
-ThermalSpecType = Union[FluidSpec, SolidSpec]
-ElectricSpecType = Union[InsulatorSpec, ConductorSpec, SemiConductorSpec]

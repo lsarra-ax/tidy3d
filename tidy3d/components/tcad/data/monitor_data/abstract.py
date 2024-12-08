@@ -13,9 +13,11 @@ from tidy3d.components.base_sim.data.monitor_data import AbstractMonitorData
 from tidy3d.components.data.data_array import SpatialDataArray
 from tidy3d.components.data.dataset import IndexedDataArray
 from tidy3d.components.types import Coordinate, ScalarSymmetry
-from tidy3d.components.tcad.types import (
-    HeatChargeMonitorTypes,
+from tidy3d.components.tcad.data.types import (
     FieldDataset
+)
+from tidy3d.components.tcad.types import (
+    HeatChargeMonitorTypes
 )
 
 
