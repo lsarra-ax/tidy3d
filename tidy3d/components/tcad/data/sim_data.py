@@ -14,9 +14,9 @@ from tidy3d.components.data.data_array import DCCapacitanceDataArray, DCIVCurveD
 from tidy3d.components.data.dataset import TetrahedralGridDataset, TriangularGridDataset, UnstructuredGridDataset
 from tidy3d.components.types import Ax, Literal, RealFieldVal
 from tidy3d.components.viz import add_ax_if_none, equal_aspect
-from tidy3d.components.tcad.simulation.simulation import HeatSimulation
-from tidy3d.components.tcad.data.monitor_data import HeatChargeMonitorDataType, TemperatureData, VoltageData
-from tidy3d.components.heat_charge.simulation import HeatChargeSimulation
+from tidy3d.components.tcad.simulation.heat import HeatSimulation
+from tidy3d.components.tcad.data.types import TemperatureData, VoltageData, HeatChargeMonitorDataTypes
+from tidy3d.components.tcad.simulation.heat_charge import HeatChargeSimulation
 
 
 class HeatChargeSimulationData(AbstractSimulationData):
@@ -68,7 +68,7 @@ class HeatChargeSimulationData(AbstractSimulationData):
         description="Original :class:`.HeatChargeSimulation` associated with the data.",
     )
 
-    data: Tuple[HeatChargeMonitorDataType, ...] = pd.Field(
+    data: Tuple[HeatChargeMonitorDataTypes, ...] = pd.Field(
         ...,
         title="Monitor Data",
         description="List of :class:`.MonitorData` instances "
