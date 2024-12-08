@@ -42,35 +42,28 @@ from tidy3d.components.tcad.boundary.specification import (
     HeatBoundarySpec,
     HeatChargeBoundarySpec,
 )
-# from tidy3d.components.tcad.simulation.charge_settings import ChargeRegimeType, ChargeToleranceSpec, ChargeToleranceType
 from tidy3d.components.tcad.grid import DistanceUnstructuredGrid, UniformUnstructuredGrid, UnstructuredGridType
-from tidy3d.components.tcad.monitors.monitor import (
-    CapacitanceMonitor,
-    FreeCarrierMonitor,
-    HeatChargeMonitorType,
-    TemperatureMonitor,
+from tidy3d.components.tcad.monitors.charge import (
     VoltageMonitor,
 )
-from tidy3d.components.tcad.source.heat import (
-    GlobalHeatChargeSource,
-    HeatChargeSourceType,
-    HeatFromElectricSource,
-    HeatSource,
-    UniformHeatSource,
+from tidy3d.components.tcad.types import (
+    HeatChargeMonitorType,
 )
-from tidy3d.components.tcad.source.coupled import (
-    GlobalHeatChargeSource,
-    HeatFromElectricSource,
+from tidy3d.components.tcad.monitors.heat import (
+    TemperatureMonitor,
 )
 from tidy3d.components.tcad.types import (
     HeatChargeSourceType,
 )
 from tidy3d.components.tcad.source.heat import (
-    GlobalHeatChargeSource,
-    HeatChargeSourceType,
-    HeatFromElectricSource,
     HeatSource,
     UniformHeatSource,
+)
+from tidy3d.components.tcad.source.coupled import (
+    HeatFromElectricSource,
+)
+from tidy3d.components.tcad.source.abstract import (
+    GlobalHeatChargeSource,
 )
 from tidy3d.components.tcad.viz import (
     CHARGE_BC_INSULATOR,
