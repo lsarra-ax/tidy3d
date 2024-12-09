@@ -8,7 +8,7 @@ https://ngspice.sourceforge.io/docs/ngspice-manual.pdf
 """
 
 from tidy3d.components.spice.analysis.dc import OperatingPointDC, TransferFunctionDC
-from tidy3d.components.spice.components.capacitors import Capacitor
+from tidy3d.components.spice.components.capacitor import Capacitor
 from tidy3d.components.spice.sources.dc import MultiStaticTransferSourceDC, StaticTransferSourceDC
 from tidy3d.components.spice.types import ElectricalAnalysisTypes
 
