@@ -13,18 +13,21 @@ class SlotboomNarrowingBandGap(Tidy3dBaseModel):
     'UNIFIED APPARENT BANDGAP NARROWING IN n- AND p-TYPE SILICON'
     Solid-State Electronics Vol. 35, No. 2, pp. 125-129, 1992"""
 
-    v1: pd.PositiveFloat = pd.Field(
+    initial_voltage: pd.PositiveFloat = pd.Field(
         6.92 * 1e-3, title="V1 parameter", description=f"V1 parameter in {VOLT}", units=VOLT
     )
+    v_1 = initial_voltage
 
     n2: pd.PositiveFloat = pd.Field(
         1.3e17,
         title="n2 parameter",
         description="n2 parameter in cm^(-3)",
     )
+    # TODO what does this mean
 
     c2: float = pd.Field(
         0.5,
         title="c2 parameter",
         description="c2 parameter",
     )
+    # TODO what does this mean
