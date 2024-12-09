@@ -866,6 +866,16 @@ class ModeIndexDataArray(DataArray):
     _dims = ("f", "mode_index")
     _data_attrs = {"long_name": "Propagation index"}
 
+    # def __init__(self, data, *args, **kwargs):
+    #     print(type(data.data))
+    #     if is_tidy_box(data):
+    #         print(args)
+    #         print(kwargs)
+    #         raise ValueError
+    #     # print(args)
+    #     # print(kwargs)
+    #     super().__init__(data, *args, **kwargs)
+
 
 class GroupIndexDataArray(DataArray):
     """Group index of a mode.

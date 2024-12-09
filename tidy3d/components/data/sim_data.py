@@ -1033,48 +1033,61 @@ class SimulationData(AbstractYeeGridSimulationData):
 
         return sim_data_original, sim_data_fwd
 
-    def make_adjoint_sim(
+    def make_adjoint_sims(
         self,
         data_vjp_paths: set[tuple],
         adjoint_monitors: list[Monitor],
-    ) -> Simulation | None:
-        """Make the adjoint simulation from the original simulation and the VJP-containing data."""
+    ) -> list[Simulation] | None:
+        """Make the adjoint simulations from the original simulation and the VJP-containing data."""
+
+        if not data_vjp_paths:
+            return None
 
         sim_original = self.simulation
 
         # generate the adjoint sources {mnt_name : list[Source]}
         sources_adj_dict = self.make_adjoint_sources(data_vjp_paths=data_vjp_paths)
+        if not sources_adj_dict:
+            return None
+
         adj_srcs = []
         for src_list in sources_adj_dict.values():
             adj_srcs += list(src_list)
 
-        if not any(adj_srcs):
+        adjoint_source_infos = self.process_adjoint_sources(adj_srcs=adj_srcs)
+        if not adjoint_source_infos:
             return None
-
-        adjoint_source_info = self.process_adjoint_sources(adj_srcs=adj_srcs)
 
         # grab boundary conditions with flipped Bloch vectors (for adjoint)
         bc_adj = sim_original.boundary_spec.flipped_bloch_vecs
 
-        # fields to update the 'fwd' simulation with to make it 'adj'
-        sim_adj_update_dict = dict(
-            sources=adjoint_source_info.sources,
-            boundary_spec=bc_adj,
-            monitors=adjoint_monitors,
-            post_norm=adjoint_source_info.post_norm,
-        )
+        adj_sims = []
+        for adjoint_source_info in adjoint_source_infos:
+            # fields to update the 'fwd' simulation with to make it 'adj'
+            sim_adj_update_dict = dict(
+                sources=adjoint_source_info.sources,
+                boundary_spec=bc_adj,
+                monitors=adjoint_monitors,
+                post_norm=adjoint_source_info.post_norm,
+            )
 
-        if not adjoint_source_info.normalize_sim:
-            sim_adj_update_dict["normalize_index"] = None
+            if not adjoint_source_info.normalize_sim:
+                sim_adj_update_dict["normalize_index"] = None
 
-        # set the ADJ grid spec wavelength to the original wavelength (for same meshing)
-        grid_spec_original = sim_original.grid_spec
-        if sim_original.sources and grid_spec_original.wavelength is None:
-            wavelength_original = grid_spec_original.wavelength_from_sources(sim_original.sources)
-            grid_spec_adj = grid_spec_original.updated_copy(wavelength=wavelength_original)
-            sim_adj_update_dict["grid_spec"] = grid_spec_adj
+            # set the ADJ grid spec wavelength to the original wavelength (for same meshing)
+            grid_spec_original = sim_original.grid_spec
+            if sim_original.sources and grid_spec_original.wavelength is None:
+                wavelength_original = grid_spec_original.wavelength_from_sources(
+                    sim_original.sources
+                )
+                grid_spec_adj = grid_spec_original.updated_copy(wavelength=wavelength_original)
+                sim_adj_update_dict["grid_spec"] = grid_spec_adj
 
-        return sim_original.updated_copy(**sim_adj_update_dict)
+            adj_sims.append(sim_original.updated_copy(**sim_adj_update_dict))
+
+        log.info(f"Created {len(adj_sims)} adjoint simulations.")
+
+        return adj_sims
 
     def make_adjoint_sources(self, data_vjp_paths: set[tuple]) -> dict[str, SourceType]:
         """Generate all of the non-zero sources for the adjoint simulation given the VJP data."""
@@ -1092,6 +1105,9 @@ class SimulationData(AbstractYeeGridSimulationData):
                 dataset_names=dataset_names, fwidth=self.fwidth_adj
             )
             sources_adj_all[mnt_data.monitor.name] = sources_adj
+            log.info(
+                f"Created {len(sources_adj)} adjoint sources for monitor '{mnt_data.monitor.name}'."
+            )
 
         return sources_adj_all
 
@@ -1101,7 +1117,7 @@ class SimulationData(AbstractYeeGridSimulationData):
         normalize_index_fwd = self.simulation.normalize_index or 0
         return self.simulation.sources[normalize_index_fwd].source_time.fwidth
 
-    def process_adjoint_sources(self, adj_srcs: list[SourceType]) -> AdjointSourceInfo:
+    def process_adjoint_sources(self, adj_srcs: list[SourceType]) -> list[AdjointSourceInfo]:
         """Compute list of final sources along with a post run normalization for adj fields."""
 
         # dictionary mapping hash of sources with same freq dependence to list of time-dependencies
@@ -1116,36 +1132,43 @@ class SimulationData(AbstractYeeGridSimulationData):
             hashes_to_src_times[tmp_src_hash].append(src.source_time)
 
         num_ports = len(hashes_to_src_times)
-        unique_freqs = {src.source_time.freq0 for src in adj_srcs}
-        num_unique_freqs = len(unique_freqs)
+        num_unique_freqs = len({src.source_time.freq0 for src in adj_srcs})
 
-        # next, figure out which treatment / normalization to apply
-        if num_unique_freqs == 1:
-            log.info("Adjoint source creation: one unique frequency, no normalization.")
-            freqs_adj = self.simulation.freqs_adjoint
+        # Group sources either by frequency or by port based on which gives fewer groups
+        if num_unique_freqs <= num_ports:
+            log.info("Grouping adjoint sources by frequency.")
+            freq_groups = defaultdict(list)
+            for src in adj_srcs:
+                freq_groups[src.source_time.freq0].append(src)
+            source_groups = list(freq_groups.values())
+        else:
+            log.info("Grouping adjoint sources by port.")
+            source_groups = []
+            for src_hash, src in hashes_to_sources.items():
+                port_sources = []
+                for src_time in hashes_to_src_times[src_hash]:
+                    port_sources.append(src.updated_copy(source_time=src_time))
+                source_groups.append(port_sources)
 
-            # if many adjoint freqs, but only 1 unique, need to mask out the non-contributors
-            if len(freqs_adj) > 1:
-                coords = dict(f=freqs_adj)
-                data = [1 if f == tuple(unique_freqs)[0] else 0 for f in freqs_adj]
-                post_norm = xr.DataArray(data, coords=coords)
-                return AdjointSourceInfo(sources=adj_srcs, post_norm=post_norm, normalize_sim=True)
+        # Process each group of sources
+        adjoint_infos = []
+        for group_sources in source_groups:
+            if len(group_sources) == 1:
+                adjoint_infos.append(
+                    AdjointSourceInfo(
+                        sources=tuple(group_sources), post_norm=1.0, normalize_sim=True
+                    )
+                )
+            else:
+                processed_srcs, post_norm = self.process_adjoint_sources_broadband(group_sources)
+                adjoint_infos.append(
+                    AdjointSourceInfo(
+                        sources=processed_srcs, post_norm=post_norm, normalize_sim=True
+                    )
+                )
 
-            return AdjointSourceInfo(sources=adj_srcs, post_norm=1.0, normalize_sim=True)
-
-        if num_ports == 1 and len(adj_srcs) == num_unique_freqs:
-            log.info("Adjoint source creation: one spatial port detected.")
-            adj_srcs, post_norm = self.process_adjoint_sources_broadband(adj_srcs)
-            return AdjointSourceInfo(sources=adj_srcs, post_norm=post_norm, normalize_sim=True)
-
-        # if several spatial ports and several frequencies, try to fit
-        log.info("Adjoint source creation: trying multifrequency fit.")
-        adj_srcs, post_norm = self.process_adjoint_sources_fit(
-            adj_srcs=adj_srcs,
-            hashes_to_src_times=hashes_to_src_times,
-            hashes_to_sources=hashes_to_sources,
-        )
-        return AdjointSourceInfo(sources=adj_srcs, post_norm=post_norm, normalize_sim=False)
+        log.info(f"Created {len(adjoint_infos)} adjoint source groups.")
+        return adjoint_infos
 
     """ SIMPLE APPROACH """
 
@@ -1176,7 +1199,7 @@ class SimulationData(AbstractYeeGridSimulationData):
         return src_broadband
 
     @staticmethod
-    def _make_post_norm_amps(adj_srcs: list[SourceType]) -> xr.DataArray:
+    def __make_post_norm_amps(adj_srcs: list[SourceType]) -> xr.DataArray:
         """Make a ``DataArray`` containing the complex amplitudes to multiply with adjoint field."""
 
         freqs = []
@@ -1190,6 +1213,33 @@ class SimulationData(AbstractYeeGridSimulationData):
         coords = dict(f=freqs)
         amps_complex = np.array(amps_complex)
         return xr.DataArray(amps_complex, coords=coords)
+
+    @staticmethod
+    def _make_post_norm_amps(adj_srcs: list[SourceType]) -> tuple[xr.DataArray, dict[int, complex]]:
+        """Make a ``DataArray`` containing the summed complex amplitudes and a dict of individual amplitudes."""
+
+        # Dictionary to sum amplitudes by frequency
+        freq_to_sum_amp = defaultdict(complex)
+        # Dictionary to store individual amplitudes by source index
+        source_to_amp = {}
+
+        for i, src in enumerate(adj_srcs):
+            src_time = src.source_time
+            freq = src_time.freq0
+            amp_complex = src_time.amplitude * np.exp(1j * src_time.phase)
+
+            # Sum amplitudes for each frequency
+            freq_to_sum_amp[freq] += amp_complex
+            # Store individual amplitude
+            source_to_amp[i] = amp_complex
+
+        # Create DataArray for summed amplitudes
+        freqs = list(freq_to_sum_amp.keys())
+        summed_amps = list(freq_to_sum_amp.values())
+        coords = dict(f=freqs)
+        summed_amps_array = xr.DataArray(summed_amps, coords=coords, dims=["f"])
+
+        return summed_amps_array
 
     """ FITTING APPROACH """
 
