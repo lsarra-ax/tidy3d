@@ -330,7 +330,6 @@ from .components.data.data_array import (
     ChargeCarrierDataArray,
     DiffractionDataArray,
     DirectivityDataArray,
-    # ElectroStaticDataArray,
     EMECoefficientDataArray,
     EMEModeIndexDataArray,
     EMEScalarFieldDataArray,
