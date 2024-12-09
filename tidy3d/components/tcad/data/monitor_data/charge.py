@@ -7,81 +7,81 @@ from typing import Optional
 import pydantic.v1 as pd
 
 from tidy3d.components.base import skip_if_fields_missing
-from tidy3d.components.data.data_array import DCCapacitanceDataArray
+from tidy3d.components.data.data_array import ElectroStaticDataArray
 from tidy3d.components.tcad.data.monitor_data.abstract import (
     FieldDatasetTypes,
     HeatChargeDataset,
     HeatChargeMonitorData,
 )
 from tidy3d.components.tcad.monitors.charge import (
-    CapacitanceMonitor,
-    FreeCarrierMonitor,
-    VoltageMonitor,
+    StaticCapacitanceMonitor,
+    StaticChargeCarrierMonitor,
+    StaticVoltageMonitor,
 )
 from tidy3d.constants import VOLT
 from tidy3d.log import log
 
+# Isn't this just static voltage?
+# class PotentialData(HeatChargeMonitorData):
+#     """Class that stores electric potential from a charge simulation."""
+#
+#     monitor: StaticVoltageMonitor = pd.Field(
+#         ...,
+#         title="Voltage monitor",
+#         description="Electric potential monitor associated with a Charge simulation.",
+#     )
+#
+#     voltage_series: HeatChargeDataset = pd.Field(
+#         None, title="Voltage series", description="Contains the voltages."
+#     )
+#
+#     @pd.validator("voltage_series", always=True)
+#     @skip_if_fields_missing(["monitor"])
+#     def warn_no_data(cls, val, values):
+#         """Warn if no data provided."""
+#
+#         mnt = values.get("monitor")
+#
+#         if val is None:
+#             log.warning(
+#                 f"No data is available for monitor '{mnt.name}'. This is typically caused by "
+#                 "monitor not intersecting any solid medium."
+#             )
+#
+#         return val
+#
+#     @property
+#     def symmetry_expanded_copy(self) -> PotentialData:
+#         """Return copy of self with symmetry applied."""
+#
+#         new_voltages = self._symmetry_expanded_copy(property=self.voltage_series.field_series)
+#
+#         return self.updated_copy(
+#             voltage_series=self.voltage_series.updated_copy(field_series=new_voltages)
+#         )
+#
+#     def field_name(self, val: str) -> str:
+#         """Gets the name of the fields to be plot."""
+#         if val == "abs^2":
+#             return "|V|²"
+#         else:
+#             return "V"
 
-class PotentialData(HeatChargeMonitorData):
-    """Class that stores electric potential from a charge simulation."""
 
-    monitor: VoltageMonitor = pd.Field(
-        ...,
-        title="Voltage monitor",
-        description="Electric potential monitor associated with a Charge simulation.",
-    )
-
-    voltage_series: HeatChargeDataset = pd.Field(
-        None, title="Voltage series", description="Contains the voltages."
-    )
-
-    @pd.validator("voltage_series", always=True)
-    @skip_if_fields_missing(["monitor"])
-    def warn_no_data(cls, val, values):
-        """Warn if no data provided."""
-
-        mnt = values.get("monitor")
-
-        if val is None:
-            log.warning(
-                f"No data is available for monitor '{mnt.name}'. This is typically caused by "
-                "monitor not intersecting any solid medium."
-            )
-
-        return val
-
-    @property
-    def symmetry_expanded_copy(self) -> PotentialData:
-        """Return copy of self with symmetry applied."""
-
-        new_voltages = self._symmetry_expanded_copy(property=self.voltage_series.field_series)
-
-        return self.updated_copy(
-            voltage_series=self.voltage_series.updated_copy(field_series=new_voltages)
-        )
-
-    def field_name(self, val: str) -> str:
-        """Gets the name of the fields to be plot."""
-        if val == "abs^2":
-            return "|V|²"
-        else:
-            return "V"
-
-
-class FreeCarrierData(HeatChargeMonitorData):
+class StaticChargeCarrierData(HeatChargeMonitorData):
     """Class that stores free carrier concentration in Charge simulations."""
 
-    monitor: FreeCarrierMonitor = pd.Field(
+    monitor: StaticChargeCarrierMonitor = pd.Field(
         ...,
         title="Free carrier monitor",
         description="Free carrier data associated with a Charge simulation.",
     )
 
-    electrons_series: HeatChargeDataset = pd.Field(
+    electrons: HeatChargeDataset = pd.Field(
         None, title="Electrons series", description="Contains the electrons."
     )
 
-    holes_series: HeatChargeDataset = pd.Field(
+    holes: HeatChargeDataset = pd.Field(
         None, title="Holes series", description="Contains the electrons."
     )
 
@@ -90,8 +90,8 @@ class FreeCarrierData(HeatChargeMonitorData):
         """Warn if no data provided."""
 
         mnt = values.get("monitor")
-        electrons = values.get("electrons_series")
-        holes = values.get("holes_series")
+        electrons = values.get("electrons")
+        holes = values.get("holes")
 
         if electrons is None or holes is None:
             log.warning(
@@ -102,15 +102,15 @@ class FreeCarrierData(HeatChargeMonitorData):
         return values
 
     @property
-    def symmetry_expanded_copy(self) -> FreeCarrierData:
+    def symmetry_expanded_copy(self) -> StaticChargeCarrierData:
         """Return copy of self with symmetry applied."""
 
-        new_electrons = self._symmetry_expanded_copy(property=self.electrons_series.field_series)
-        new_holes = self._symmetry_expanded_copy(property=self.holes_series.field_series)
+        new_electrons = self._symmetry_expanded_copy(property=self.electrons.field_series)
+        new_holes = self._symmetry_expanded_copy(property=self.holes.field_series)
 
         return self.updated_copy(
-            electrons_series=self.electrons_series.updated_copy(field_series=new_electrons),
-            holes_series=self.holes_series.updated_copy(field_series=new_holes),
+            electrons_series=self.electrons.updated_copy(field_series=new_electrons),
+            holes_series=self.holes.updated_copy(field_series=new_holes),
         )
 
     def field_name(self, val: str) -> str:
@@ -121,22 +121,22 @@ class FreeCarrierData(HeatChargeMonitorData):
             return "Electrons, Holes"
 
 
-class CapacitanceData(HeatChargeMonitorData):
+class StaticCapacitanceData(HeatChargeMonitorData):
     """Class that stores capacitance data from a Charge simulation."""
 
-    monitor: CapacitanceMonitor = pd.Field(
+    monitor: StaticCapacitanceMonitor = pd.Field(
         ...,
         title="Capacitance monitor",
         description="Capacitance data associated with a Charge simulation.",
     )
 
-    hole_capacitance: DCCapacitanceDataArray = pd.Field(
+    hole_capacitance: ElectroStaticDataArray = pd.Field(
         None,
         title="Hole capacitance",
         description="Small signal capacitance (dQh/dV) associated to the monitor.",
     )
 
-    electron_capacitance: DCCapacitanceDataArray = pd.Field(
+    electron_capacitance: ElectroStaticDataArray = pd.Field(
         None,
         title="Electron capacitance",
         description="Small signal capacitance (dQe/dV) associated to the monitor.",
@@ -162,24 +162,24 @@ class CapacitanceData(HeatChargeMonitorData):
         return ""
 
 
-class VoltageData(HeatChargeMonitorData):
+class StaticVoltageData(HeatChargeMonitorData):
     """Data associated with a :class:`VoltageMonitor`: spatial electric potential field.
 
     Example
     -------
-    >>> from tidy3d import VoltageMonitor, SpatialDataArray
+    >>> from tidy3d import StaticVoltageMonitor, SpatialDataArray
     >>> import numpy as np
     >>> voltage_data = SpatialDataArray(
     ...     np.ones((2, 3, 4)), coords={"x": [0, 1], "y": [0, 1, 2], "z": [0, 1, 2, 3]}
     ... )
-    >>> voltage_mnt = VoltageMonitor(size=(1, 2, 3), name="voltage")
-    >>> voltage_mnt_data = VoltageData(
+    >>> voltage_mnt = StaticVoltageMonitor(size=(1, 2, 3), name="voltage")
+    >>> voltage_mnt_data = StaticVoltageData(
     ...     monitor=voltage_mnt, voltage=voltage_data, symmetry=(0, 1, 0), symmetry_center=(0, 0, 0)
     ... )
     >>> voltage_mnt_data_expanded = voltage_mnt_data.symmetry_expanded_copy
     """
 
-    monitor: VoltageMonitor = pd.Field(
+    monitor: StaticVoltageMonitor = pd.Field(
         ..., title="Monitor", description="Electric potential monitor associated with the data."
     )
 
@@ -213,7 +213,7 @@ class VoltageData(HeatChargeMonitorData):
         return val
 
     @property
-    def symmetry_expanded_copy(self) -> VoltageData:
+    def symmetry_expanded_copy(self) -> StaticVoltageData:
         """Return copy of self with symmetry applied."""
 
         new_phi = self._symmetry_expanded_copy(property=self.voltage)

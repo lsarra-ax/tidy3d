@@ -19,9 +19,10 @@ from tidy3d.components.tcad.types import (
 from tidy3d.constants import ELECTRON_VOLT
 
 
-class SemiConductorSpec(AbstractHeatChargeSpec):
+class ElectronicSpec(AbstractHeatChargeSpec):
+    # TODO does this account for the whole temporal dynamics? If not then it should be called ElectroStatic, which it was called before, but unsure why it got changed?
     """
-    This class is used to define semiconductors.
+    This class is used to define electro-static semiconductors.
 
     Notes
     -----
@@ -29,44 +30,47 @@ class SemiConductorSpec(AbstractHeatChargeSpec):
         Default values for parameters and models are those appropriate for Silicon
     """
 
-    nc: pd.PositiveFloat = pd.Field(
+    electrons_effective_density: pd.PositiveFloat = pd.Field(
         2.86e19,
         title="Effective density of electron states",
         description="Effective density of electron states",
         units="cm^(-3)",
     )
+    N_e = electrons_effective_density
 
-    nv: pd.PositiveFloat = pd.Field(
+    holes_effective_density: pd.PositiveFloat = pd.Field(
         3.1e19,
         title="Effective density of hole states",
         description="Effective density of hole states",
         units="cm^(-3)",
     )
+    N_v = holes_effective_density
 
-    eg: pd.PositiveFloat = pd.Field(
+    bandgap_energy: pd.PositiveFloat = pd.Field(
         1.11,
         title="Band-gap energy",
         description="Band-gap energy",
         units=ELECTRON_VOLT,
     )
+    E_g = bandgap_energy
 
-    chi: float = pd.Field(
+    electron_affinity: float = pd.Field(
         4.05, title="Electron affinity", description="Electron affinity", units=ELECTRON_VOLT
     )
 
-    mobility_model: MobilityModelTypes = pd.Field(
+    mobility: MobilityModelTypes = pd.Field(
         CaugheyThomasMobility(),
         title="Mobility model",
         description="Mobility model",
     )
 
-    recombination_model: tuple[RecombinationModelTypes, ...] = pd.Field(
+    recombination_generation: tuple[RecombinationModelTypes, ...] = pd.Field(
         (ShockleyReedHallRecombination(), AugerRecombination(), RadiativeRecombination()),
         title="Recombination models",
         description="Array containing the recombination models to be applied to the material.",
     )
 
-    bandgap_model: BandGapModelTypes = pd.Field(
+    bandgap: BandGapModelTypes = pd.Field(
         SlotboomNarrowingBandGap(),
         title="Bandgap narrowing model.",
         description="Bandgap narrowing model.",
@@ -85,6 +89,9 @@ class SemiConductorSpec(AbstractHeatChargeSpec):
         description="Units of 1/cm^3",
         units="1/cm^3",
     )
+    # TODO add shorthand if desired.
 
 
-ChargeMaterialTypes = ElectricSpecType = SemiConductorSpec
+# in the future we have ElectroDynamicSpec
+
+ChargeMaterialTypes = ElectricSpecType = ElectronicSpec

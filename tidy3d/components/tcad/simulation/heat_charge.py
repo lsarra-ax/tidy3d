@@ -40,10 +40,10 @@ from tidy3d.components.tcad.grid import (
     UniformUnstructuredGrid,
     UnstructuredGridType,
 )
-from tidy3d.components.tcad.materials.charge import SemiConductorSpec
+from tidy3d.components.tcad.materials.charge import ElectronicSpec
 from tidy3d.components.tcad.materials.heat import SolidSpec
 from tidy3d.components.tcad.monitors.charge import (
-    VoltageMonitor,
+    StaticVoltageMonitor,
 )
 from tidy3d.components.tcad.monitors.heat import (
     TemperatureMonitor,
@@ -87,7 +87,7 @@ HEAT_CHARGE_BACK_STRUCTURE_STR = "<<<HEAT_CHARGE_BACKGROUND_STRUCTURE>>>"
 
 
 class HeatChargeSimulation(AbstractSimulation):
-    """This class is used to define thermo-electric simulations.
+    """This class is used to define thermo-electric TCAD simulations.
 
     Notes
     -----
@@ -183,7 +183,7 @@ class HeatChargeSimulation(AbstractSimulation):
         "Each element can be ``0`` (symmetry off) or ``1`` (symmetry on).",
     )
 
-    electrical_analysis: ElectricalAnalysisTypes = pd.Field(
+    analysis: ElectricalAnalysisTypes = pd.Field(
         TransferFunctionDC(), title="Charge settings.", description="Some Charge settings."
     )
 
@@ -274,7 +274,9 @@ class HeatChargeSimulation(AbstractSimulation):
         failed_solid_idx, failed_elect_idx = cls._check_cross_solids(val, values)
 
         temp_monitors = [idx for idx, mnt in enumerate(val) if isinstance(mnt, TemperatureMonitor)]
-        volt_monitors = [idx for idx, mnt in enumerate(val) if isinstance(mnt, VoltageMonitor)]
+        volt_monitors = [
+            idx for idx, mnt in enumerate(val) if isinstance(mnt, StaticVoltageMonitor)
+        ]
 
         failed_temp_mnt = [idx for idx in temp_monitors if idx in failed_solid_idx]
         failed_volt_mnt = [idx for idx in volt_monitors if idx in failed_elect_idx]
@@ -402,7 +404,7 @@ class HeatChargeSimulation(AbstractSimulation):
             if not any(isinstance(mnt, ChargeMonitorTypes) for mnt in monitors):
                 raise SetupError(
                     "CHARGE simulations require the definition of, at least, one of these monitors: "
-                    "'[VoltageMonitor, FreeCarrierMonitor, CapacitanceMonitor]' "
+                    "'[StaticVoltageMonitor, StaticChargeCarrierMonitor, StaticCapacitanceMonitor]' "
                     "but none have been defined."
                 )
 
@@ -540,7 +542,7 @@ class HeatChargeSimulation(AbstractSimulation):
 
         # make sure mediums with doping have been defined
         for structure in structures:
-            if isinstance(structure.medium.electric_spec, SemiConductorSpec):
+            if isinstance(structure.medium.electric_spec, ElectronicSpec):
                 if (
                     structure.medium.electric_spec.donors is not None
                     or structure.medium.electric_spec.acceptors is not None
@@ -1330,7 +1332,7 @@ class HeatChargeSimulation(AbstractSimulation):
         """
         simulation_types = []
 
-        # NOTE: for the time being, if a simulation has SemiConductorSpec
+        # NOTE: for the time being, if a simulation has ElectronicSpec
         # then we consider it of being a 'HeatChargeSimulationTypess.CHARGE'
         if self._check_if_semiconductor_present(self.structures):
             return [HeatChargeSimulationTypes.CHARGE]

@@ -762,7 +762,7 @@ class AbstractMedium(ABC, Tidy3dBaseModel):
         discriminator=TYPE_TAG_STR,
     )
 
-    # electric_spec: SemiConductorSpec | None = pd.Field(
+    # electric_spec: ElectronicSpec | None = pd.Field(
     #     None,
     #     title="Electric Specification",
     #     description="Specification of the medium electric properties.",

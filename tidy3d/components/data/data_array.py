@@ -1179,48 +1179,46 @@ class EMEModeIndexDataArray(DataArray):
     _data_attrs = {"long_name": "Propagation index"}
 
 
-class ChargeDataArray(DataArray):
+class ChargeCarrierDataArray(DataArray):
     """Charge data array.
 
     Example
     -------
     >>> n = [0, 1e-12, 2e-12]
     >>> p = [0, 3e-12, 4e-12]
-    >>> td = ChargeDataArray((1+1j) * np.random.random((3,3)), coords=dict(n=n, p=p))
+    >>> td = ChargeCarrierDataArray((1+1j) * np.random.random((3,3)), coords=dict(n=n, p=p))
     """
 
     __slots__ = ()
     _dims = ("n", "p")
 
 
-class DCIVCurveDataArray(DataArray):
-    """Semiconductor I-V curve data array.
+class ElectroStaticDataArray(DataArray):
+    # TODO proper docs Given the combinatorial amount of variations of electro-static performance parameters,
+    #  I think it makes sense to have a single data array that can handle these type of parameter sweeps, and we just
+    #  check for them. Note we need to validate the data aligns properly between the swept variaable. It might be the
+    #  case C-I-V all get swept at the same time
+    """
+    Semiconductor I-V curve data array.
 
     Example
     -------
     >>> I = [0. 0, 1, 4]
     >>> V = [-1, -0.5, 0, 0.5]
-    >>> td = DCIVCurveDataArray(data=I, coords={"Voltage (V)": V})
-    """
+    >>> td = ElectroStaticDataArray(data=I, coords={"Voltage (V)": V})
 
-    __slots__ = ()
-    _dims = ("Voltage (V)",)
-    _data_attrs = {"long_name": "Current (A)"}
-
-
-class DCCapacitanceDataArray(DataArray):
-    """Semiconductor DC capacitance variations with respect to voltage.
+    Semiconductor DC capacitance variations with respect to voltage.
 
     Example
     -------
     >>> C = [0. 0, 1, 4]
     >>> V = [-1, -0.5, 0, 0.5]
-    >>> td = DCCapacitanceDataArray(data=C, coords={"Voltage (V)": V})
+    >>> td = ElectroStaticDataArray(data=C, coords={"Voltage (V)": V})
     """
 
     __slots__ = ()
     _dims = ("Voltage (V)",)
-    _data_attrs = {"long_name": "Capacitance (fF)"}
+    _data_attrs = {"long_name": "Current (A)"}
 
 
 class PointDataArray(DataArray):
@@ -1311,9 +1309,8 @@ DATA_ARRAY_TYPES = [
     EMECoefficientDataArray,
     EMEModeIndexDataArray,
     EMEFreqModeDataArray,
-    ChargeDataArray,
-    DCIVCurveDataArray,
-    DCCapacitanceDataArray,
+    ChargeCarrierDataArray,
+    ElectroStaticDataArray,
     PointDataArray,
     CellDataArray,
     IndexedDataArray,

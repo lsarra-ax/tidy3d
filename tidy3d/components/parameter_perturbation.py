@@ -17,7 +17,12 @@ from ..constants import CMCUBE, EPSILON_0, HERTZ, KELVIN, PERCMCUBE, inf
 from ..exceptions import DataError
 from ..log import log
 from .base import Tidy3dBaseModel, cached_property
-from .data.data_array import ChargeDataArray, HeatDataArray, IndexedDataArray, SpatialDataArray
+from .data.data_array import (
+    ChargeCarrierDataArray,
+    HeatDataArray,
+    IndexedDataArray,
+    SpatialDataArray,
+)
 from .data.dataset import (
     CustomSpatialDataType,
     UnstructuredGridDataset,
@@ -774,8 +779,8 @@ class CustomChargePerturbation(ChargePerturbation):
 
     Example
     -------
-    >>> from tidy3d import ChargeDataArray
-    >>> perturbation_data = ChargeDataArray(
+    >>> from tidy3d import ChargeCarrierDataArray
+    >>> perturbation_data = ChargeCarrierDataArray(
     ...     [[0.001, 0.002, 0.004], [0.003, 0.002, 0.001]],
     ...     coords=dict(n=[2e15, 2e19], p=[1e16, 1e17, 1e18]),
     ... )
@@ -784,7 +789,7 @@ class CustomChargePerturbation(ChargePerturbation):
     ... )
     """
 
-    perturbation_values: ChargeDataArray = pd.Field(
+    perturbation_values: ChargeCarrierDataArray = pd.Field(
         ...,
         title="Petrubation Values",
         description="2D array (vs electron and hole densities) of sampled perturbation values.",

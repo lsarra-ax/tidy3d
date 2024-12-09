@@ -4,7 +4,7 @@ from tidy3d.components.tcad.monitors.abstract import HeatChargeMonitor
 from tidy3d.log import log
 
 
-class VoltageMonitor(HeatChargeMonitor):
+class StaticVoltageMonitor(HeatChargeMonitor):
     """Electric potential monitor."""
 
     @pd.root_validator(skip_on_failure=True)
@@ -16,19 +16,19 @@ class VoltageMonitor(HeatChargeMonitor):
             log.warning(
                 "Currently, charge simulations support only unstructured monitors. If monitor "
                 f"'{name}' is associated with a charge simulation, please set it tu unstructured. "
-                f"This can be done with 'your_monitor = tidy3d.VoltageMonitor(unstructured=True)'"
+                f"This can be done with 'your_monitor = tidy3d.StaticVoltageMonitor(unstructured=True)'"
             )
         return values
 
 
-class FreeCarrierMonitor(HeatChargeMonitor):
+class StaticChargeCarrierMonitor(HeatChargeMonitor):
     """Free-carrier monitor for Charge simulations."""
 
     # NOTE: for the time being supporting unstructured
     unstructured = True
 
 
-class CapacitanceMonitor(HeatChargeMonitor):
+class StaticCapacitanceMonitor(HeatChargeMonitor):
     """Capacitance monitor associated with a charge simulation."""
 
     unstructured = True

@@ -255,7 +255,7 @@ def test_charge_perturbation(log_capture):
         )
 
     # test custom charge perturbation
-    perturb_data = td.ChargeDataArray(
+    perturb_data = td.ChargeCarrierDataArray(
         [[1 + 1j, 3 + 1j, 1j], [2 + 2j, 2j, 2 + 2j]],
         coords=dict(n=[2e17, 2e18], p=[1e16, 1e17, 1e18]),
     )
@@ -367,7 +367,7 @@ def test_parameter_perturbation(unstructured):
     heat_range = (-100 * 0.01, 100 * 0.01)
     charge_range = (1j, 3 + 1j)
 
-    perturb_data = td.ChargeDataArray(
+    perturb_data = td.ChargeCarrierDataArray(
         [[1 + 1j, 3 + 1j, 1j], [2 + 2j, 2j, 2 + 2j]],
         coords=dict(n=[2e17, 2e18], p=[1e16, 1e17, 1e18]),
     )

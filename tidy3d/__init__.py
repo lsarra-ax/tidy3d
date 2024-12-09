@@ -210,11 +210,11 @@ from tidy3d.components.tcad.data.monitor_data.abstract import (
     HeatChargeMonitorData,
 )
 from tidy3d.components.tcad.data.monitor_data.charge import (
-    CapacitanceData,
-    DCCapacitanceDataArray,
-    FreeCarrierData,
-    PotentialData,
-    VoltageData,
+    ElectroStaticDataArray,
+    StaticCapacitanceData,
+    StaticChargeCarrierData,
+    # PotentialData,
+    StaticVoltageData,
 )
 from tidy3d.components.tcad.data.monitor_data.heat import TemperatureData
 from tidy3d.components.tcad.data.sim_data import HeatChargeSimulationData, HeatSimulationData
@@ -229,15 +229,15 @@ from tidy3d.components.tcad.grid import (
 )
 from tidy3d.components.tcad.materials.charge import (
     ElectricSpecType,
-    SemiConductorSpec,
+    ElectronicSpec,
 )
 from tidy3d.components.tcad.materials.heat import FluidSpec, SolidSpec, ThermalSpecType
 from tidy3d.components.tcad.mobility import CaugheyThomasMobility
 from tidy3d.components.tcad.monitors.abstract import HeatChargeMonitor
 from tidy3d.components.tcad.monitors.charge import (
-    CapacitanceMonitor,
-    FreeCarrierMonitor,
-    VoltageMonitor,
+    StaticCapacitanceMonitor,
+    StaticChargeCarrierMonitor,
+    StaticVoltageMonitor,
 )
 from tidy3d.components.tcad.monitors.heat import (
     TemperatureMonitor,
@@ -327,10 +327,10 @@ from .components.boundary import (
 from .components.data.data_array import (
     AxialRatioDataArray,
     CellDataArray,
-    ChargeDataArray,
-    DCIVCurveDataArray,
+    ChargeCarrierDataArray,
     DiffractionDataArray,
     DirectivityDataArray,
+    # ElectroStaticDataArray,
     EMECoefficientDataArray,
     EMEModeIndexDataArray,
     EMEScalarFieldDataArray,
@@ -389,11 +389,11 @@ __all__ = [
     "Box",
     "C_0",
     "Capacitor",
-    "CapacitanceData",
-    "CapacitanceMonitor",
+    "StaticCapacitanceData",
+    "StaticCapacitanceMonitor",
     "CaugheyThomasMobility",
     "CellDataArray",
-    "ChargeDataArray",
+    "ChargeCarrierDataArray",
     "ChargeSourceTypes",
     "ChargeMonitorTypes",
     "ClipOperation",
@@ -420,8 +420,7 @@ __all__ = [
     "CustomSourceTime",
     "Cylinder",
     "DATA_TYPE_MAP",
-    "DCCapacitanceDataArray",
-    "DCIVCurveDataArray",
+    "ElectroStaticDataArray",
     "Debye",
     "DefaultAbsorberParameters",
     "DefaultPMLParameters",
@@ -491,8 +490,8 @@ __all__ = [
     "FluxTimeData",
     "FluxTimeDataArray",
     "FluxTimeMonitor",
-    "FreeCarrierData",
-    "FreeCarrierMonitor",
+    "StaticChargeCarrierData",
+    "StaticChargeCarrierMonitor",
     "FullyAnisotropicMedium",
     "GaussianBeam",
     "GaussianPulse",
@@ -593,7 +592,7 @@ __all__ = [
     "ScalarModeFieldCylindricalDataArray",
     "Scene",
     "Sellmeier",
-    "SemiConductorSpec",
+    "ElectronicSpec",
     "ShockleyReedHallRecombination",
     "Simulation",
     "SimulationBoundary",
@@ -633,8 +632,8 @@ __all__ = [
     "UniformUnstructuredGrid",
     "Updater",
     "VoltageBC",
-    "VoltageData",
-    "VoltageMonitor",
+    "StaticVoltageData",
+    "StaticVoltageMonitor",
     "VolumetricAveraging",
     "YeeGrid",
     "__version__",

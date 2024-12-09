@@ -312,7 +312,7 @@ def test_heat_data_array():
 def test_charge_data_array():
     n = [0, 1e-12, 2e-12]
     p = [0, 3e-12, 4e-12]
-    _ = td.ChargeDataArray((1 + 1j) * np.random.random((3, 3)), coords=dict(n=n, p=p))
+    _ = td.ChargeCarrierDataArray((1 + 1j) * np.random.random((3, 3)), coords=dict(n=n, p=p))
 
 
 def test_point_data_array():
