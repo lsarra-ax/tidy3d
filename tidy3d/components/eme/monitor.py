@@ -7,8 +7,7 @@ from typing import Literal, Optional, Tuple, Union
 
 import pydantic.v1 as pd
 
-from ..base_sim.monitor import BoxMonitor
-from ..monitor import AbstractFieldMonitor, ModeSolverMonitor
+from ..monitor import AbstractFieldMonitor, BoxMonitor, ModeSolverMonitor
 from ..types import FreqArray
 
 BYTES_COMPLEX = 8

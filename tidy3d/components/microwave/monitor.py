@@ -6,10 +6,10 @@ from typing import Union
 import numpy as np
 import pydantic.v1 as pd
 
-from .base import cached_property
-from .base_sim.monitor import AbstractMonitor
-from .geometry.base import Box
-from .monitor import (
+from ..base import cached_property
+from ..base_sim.monitor import AbstractMonitor
+from ..geometry.base import Box
+from ..monitor import (
     BYTES_COMPLEX,
     BYTES_REAL,
     FieldMonitor,
@@ -17,7 +17,7 @@ from .monitor import (
     FreqMonitor,
     TimeMonitor,
 )
-from .types import ArrayFloat1D, ArrayFloat2D, Ax, Axis, Coordinate, Direction
+from ..types import ArrayFloat1D, ArrayFloat2D, Ax, Axis, Coordinate, Direction
 
 
 class AbstractVoltageMonitor(AbstractMonitor):
@@ -204,9 +204,14 @@ class AbstractCurrentMonitor(AbstractMonitor):
     @cached_property
     def _integration_axes(self) -> list[Axis]:
         axes = [0, 1, 2]
-        zero_dim = self.path.size.index(0)
+        zero_dim = self.geometry.size.index(0)
         axes.pop(zero_dim)
         return axes
+
+    @cached_property
+    def normal_axis(self) -> Axis:
+        """Axis normal to the monitor's plane."""
+        return self.geometry.size.index(0.0)
 
     @cached_property
     def _fields(self) -> list[Axis]:

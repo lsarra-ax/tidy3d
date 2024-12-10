@@ -1,7 +1,7 @@
 """Tests RF monitors."""
 
 import numpy as np
-from tidy3d.components.rf_monitor import VoltageMonitor
+from tidy3d.components.microwave.monitor import VoltageMonitor
 
 
 def test_create():

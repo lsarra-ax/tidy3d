@@ -5,7 +5,7 @@ from typing import Union
 
 import pydantic.v1 as pd
 
-from ..base_sim.monitor import BoxMonitor
+from ..monitor import BoxMonitor
 from ..types import ArrayFloat1D
 
 BYTES_REAL = 4

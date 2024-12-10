@@ -51,6 +51,9 @@ from .medium import (
     MediumType,
     MediumType3D,
 )
+from .microwave.monitor import (
+    RFMonitorType,
+)
 from .monitor import (
     AbstractFieldProjectionMonitor,
     AbstractModeMonitor,
@@ -67,9 +70,6 @@ from .monitor import (
     PermittivityMonitor,
     SurfaceIntegrationMonitor,
     TimeMonitor,
-)
-from .rf_monitor import (
-    RFMonitorType,
 )
 from .run_time_spec import RunTimeSpec
 from .scene import MAX_NUM_MEDIUMS, Scene
@@ -1091,8 +1091,9 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
 
         # Expand monitor size slightly to break numerical precision in favor of always having
         # enough data to span the full monitor.
-        expand_size = [size + fp_eps if size > fp_eps else size for size in monitor.size]
-        box_expanded = Box(center=monitor.center, size=expand_size)
+        box = monitor.geometry
+        expand_size = [size + fp_eps if size > fp_eps else size for size in box.size]
+        box_expanded = Box(center=box.center, size=expand_size)
         # Discretize without extension for now
         span_inds = np.array(self.grid.discretize_inds(box_expanded, extend=False))
 

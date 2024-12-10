@@ -88,18 +88,3 @@ class AbstractMonitor(Tidy3dBaseModel, ABC):
         """
         arrs = [np.arange(ncells) for ncells in num_cells]
         return tuple((self.downsample(arr, axis=dim).size for dim, arr in enumerate(arrs)))
-
-
-class BoxMonitor(Box, AbstractMonitor):
-    """Monitor with a geometry directly defined by a :class:`Box`."""
-
-    @cached_property
-    def geometry(self) -> Box:
-        """:class:`Box` representation of monitor.
-
-        Returns
-        -------
-        :class:`Box`
-            Representation of the monitor geometry as a :class:`Box`.
-        """
-        return Box(center=self.center, size=self.size)

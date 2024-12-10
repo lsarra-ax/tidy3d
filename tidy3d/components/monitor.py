@@ -11,7 +11,8 @@ from ..exceptions import SetupError, ValidationError
 from ..log import log
 from .apodization import ApodizationSpec
 from .base import Tidy3dBaseModel, cached_property, skip_if_fields_missing
-from .base_sim.monitor import AbstractMonitor, BoxMonitor
+from .base_sim.monitor import AbstractMonitor
+from .geometry.base import Box
 from .medium import MediumType
 from .mode import ModeSpec
 from .types import (
@@ -42,6 +43,21 @@ WARN_NUM_MODES = 100
 # This number relates directly to the standard deviation of the Gaussian function which is used
 # for windowing the monitor.
 WINDOW_FACTOR = 15
+
+
+class BoxMonitor(Box, AbstractMonitor):
+    """Monitor with a geometry directly defined by a :class:`Box`."""
+
+    @cached_property
+    def geometry(self) -> Box:
+        """:class:`Box` representation of monitor.
+
+        Returns
+        -------
+        :class:`Box`
+            Representation of the monitor geometry as a :class:`Box`.
+        """
+        return Box(center=self.center, size=self.size)
 
 
 class Monitor(BoxMonitor):

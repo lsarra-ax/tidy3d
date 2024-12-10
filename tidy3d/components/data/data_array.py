@@ -1267,7 +1267,7 @@ class VoltageDataArray(DataArray):
     __slots__ = ()
     _dims = "f"
     _data_attrs = {
-        "long_name": "Voltage",
+        "long_name": "voltage",
         "units": VOLT,
     }
 
@@ -1285,7 +1285,7 @@ class CurrentDataArray(DataArray):
     __slots__ = ()
     _dims = "f"
     _data_attrs = {
-        "long_name": "Current",
+        "long_name": "current",
         "units": AMP,
     }
 
@@ -1303,7 +1303,7 @@ class VoltageTimeDataArray(DataArray):
     __slots__ = ()
     _dims = "t"
     _data_attrs = {
-        "long_name": "Voltage",
+        "long_name": "voltage",
         "units": VOLT,
     }
 
@@ -1321,7 +1321,7 @@ class CurrentTimeDataArray(DataArray):
     __slots__ = ()
     _dims = "t"
     _data_attrs = {
-        "long_name": "Current",
+        "long_name": "current",
         "units": AMP,
     }
 

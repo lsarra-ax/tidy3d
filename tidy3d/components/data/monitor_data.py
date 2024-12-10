@@ -19,6 +19,12 @@ from ..base import TYPE_TAG_STR, cached_property, skip_if_fields_missing
 from ..base_sim.data.monitor_data import AbstractMonitorData
 from ..grid.grid import Coords, Grid
 from ..medium import Medium, MediumType
+from ..microwave.monitor import (
+    CurrentMonitor,
+    CurrentTimeMonitor,
+    VoltageMonitor,
+    VoltageTimeMonitor,
+)
 from ..monitor import (
     DiffractionMonitor,
     DirectivityMonitor,
@@ -34,12 +40,6 @@ from ..monitor import (
     ModeSolverMonitor,
     MonitorType,
     PermittivityMonitor,
-)
-from ..rf_monitor import (
-    CurrentMonitor,
-    CurrentTimeMonitor,
-    VoltageMonitor,
-    VoltageTimeMonitor,
 )
 from ..source import (
     CustomCurrentSource,
