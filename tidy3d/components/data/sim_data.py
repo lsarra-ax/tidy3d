@@ -1119,7 +1119,6 @@ class SimulationData(AbstractYeeGridSimulationData):
 
     def process_adjoint_sources(self, adj_srcs: list[SourceType]) -> list[AdjointSourceInfo]:
         """Compute list of final sources along with a post run normalization for adj fields."""
-
         # dictionary mapping hash of sources with same freq dependence to list of time-dependencies
         hashes_to_sources = defaultdict(None)
         hashes_to_src_times = defaultdict(list)
@@ -1131,36 +1130,26 @@ class SimulationData(AbstractYeeGridSimulationData):
             hashes_to_sources[tmp_src_hash] = src
             hashes_to_src_times[tmp_src_hash].append(src.source_time)
 
+        # Group sources by frequency or port, whichever gives fewer groups
         num_ports = len(hashes_to_src_times)
         num_unique_freqs = len({src.source_time.freq0 for src in adj_srcs})
-
-        # Group sources either by frequency or by port based on which gives fewer groups
-        if num_unique_freqs <= num_ports:
-            log.info("Grouping adjoint sources by frequency.")
-            freq_groups = defaultdict(list)
-            for src in adj_srcs:
-                freq_groups[src.source_time.freq0].append(src)
-            source_groups = list(freq_groups.values())
-        else:
-            log.info("Grouping adjoint sources by port.")
-            source_groups = []
-            for src_hash, src in hashes_to_sources.items():
-                port_sources = []
-                for src_time in hashes_to_src_times[src_hash]:
-                    port_sources.append(src.updated_copy(source_time=src_time))
-                source_groups.append(port_sources)
-
-        # Process each group of sources
         adjoint_infos = []
-        for group_sources in source_groups:
-            if len(group_sources) == 1:
+
+        if num_unique_freqs <= num_ports:
+            # Group sources by frequency - more efficient when fewer unique frequencies
+            log.info("Grouping adjoint sources by frequency.")
+            unique_freqs = {src.source_time.freq0 for src in adj_srcs}
+            for freq0 in unique_freqs:
+                group = [src for src in adj_srcs if src.source_time.freq0 == freq0]
                 adjoint_infos.append(
-                    AdjointSourceInfo(
-                        sources=tuple(group_sources), post_norm=1.0, normalize_sim=True
-                    )
+                    AdjointSourceInfo(sources=group, post_norm=1.0, normalize_sim=True)
                 )
-            else:
-                processed_srcs, post_norm = self.process_adjoint_sources_broadband(group_sources)
+        else:
+            # Group sources by port - more efficient when fewer unique ports
+            log.info("Grouping adjoint sources by port.")
+            for src_times in hashes_to_src_times.values():
+                group = [src.updated_copy(source_time=src_time) for src_time in src_times]
+                processed_srcs, post_norm = self.process_adjoint_sources_broadband(group)
                 adjoint_infos.append(
                     AdjointSourceInfo(
                         sources=processed_srcs, post_norm=post_norm, normalize_sim=True
@@ -1168,9 +1157,8 @@ class SimulationData(AbstractYeeGridSimulationData):
                 )
 
         log.info(f"Created {len(adjoint_infos)} adjoint source groups.")
+        exit()
         return adjoint_infos
-
-    """ SIMPLE APPROACH """
 
     def process_adjoint_sources_broadband(
         self, adj_srcs: list[SourceType]
@@ -1199,7 +1187,7 @@ class SimulationData(AbstractYeeGridSimulationData):
         return src_broadband
 
     @staticmethod
-    def __make_post_norm_amps(adj_srcs: list[SourceType]) -> xr.DataArray:
+    def _make_post_norm_amps(adj_srcs: list[SourceType]) -> xr.DataArray:
         """Make a ``DataArray`` containing the complex amplitudes to multiply with adjoint field."""
 
         freqs = []
@@ -1213,142 +1201,6 @@ class SimulationData(AbstractYeeGridSimulationData):
         coords = dict(f=freqs)
         amps_complex = np.array(amps_complex)
         return xr.DataArray(amps_complex, coords=coords)
-
-    @staticmethod
-    def _make_post_norm_amps(adj_srcs: list[SourceType]) -> tuple[xr.DataArray, dict[int, complex]]:
-        """Make a ``DataArray`` containing the summed complex amplitudes and a dict of individual amplitudes."""
-
-        # Dictionary to sum amplitudes by frequency
-        freq_to_sum_amp = defaultdict(complex)
-        # Dictionary to store individual amplitudes by source index
-        source_to_amp = {}
-
-        for i, src in enumerate(adj_srcs):
-            src_time = src.source_time
-            freq = src_time.freq0
-            amp_complex = src_time.amplitude * np.exp(1j * src_time.phase)
-
-            # Sum amplitudes for each frequency
-            freq_to_sum_amp[freq] += amp_complex
-            # Store individual amplitude
-            source_to_amp[i] = amp_complex
-
-        # Create DataArray for summed amplitudes
-        freqs = list(freq_to_sum_amp.keys())
-        summed_amps = list(freq_to_sum_amp.values())
-        coords = dict(f=freqs)
-        summed_amps_array = xr.DataArray(summed_amps, coords=coords, dims=["f"])
-
-        return summed_amps_array
-
-    """ FITTING APPROACH """
-
-    def process_adjoint_sources_fit(
-        self,
-        adj_srcs: list[SourceType],
-        hashes_to_src_times: dict[str, GaussianPulse],
-        hashes_to_sources: dict[str, list[SourceType]],
-    ) -> tuple[list[SourceType], float]:
-        """Process the adjoint sources using a least squared fit to the derivative data."""
-
-        raise NotImplementedError(
-            "Can't perform multi-frequency autograd with several adjoint sources yet. "
-            "In the meantime, please construct a single 'Simulation' per output data "
-            "(can be multi-frequency) and run in parallel using 'web.run_async'. For example, "
-            "if your problem has 'P' outuput ports, e.g. waveguides, please make a 'Simulation' "
-            "corresponding to the objective function contribution at each port."
-        )
-
-        # new adjoint sources
-        new_adj_srcs = []
-        for src_hash, source_times in hashes_to_src_times.items():
-            src = hashes_to_sources[src_hash]
-            new_sources = self.correct_adjoint_sources(
-                src=src, fwidth=self.fwidth_adj, source_times=source_times
-            )
-            new_adj_srcs += new_sources
-
-        # compute amplitudes of each adjoint source, and the norm
-        adj_src_amps = []
-        for src in new_adj_srcs:
-            amp = src.source_time.amp_complex
-            adj_src_amps.append(amp)
-        norm_amps = np.linalg.norm(adj_src_amps)
-
-        # normalize all of the adjoint sources by this and return the normalization term used
-        adj_srcs_norm = []
-        for src in new_adj_srcs:
-            src_time = src.source_time
-            amp = src_time.amp_complex
-            src_time_norm = src_time.from_amp_complex(amp=amp / norm_amps)
-            src_nrm = src.updated_copy(source_time=src_time_norm)
-            adj_srcs_norm.append(src_nrm)
-
-        return adj_srcs_norm, norm_amps
-
-    def correct_adjoint_sources(
-        self, src: SourceType, fwidth: float, source_times: list[GaussianPulse]
-    ) -> [SourceType]:
-        """Corret a set of spectrally overlapping adjoint sources to give correct E_adj."""
-
-        freqs = [st.freq0 for st in source_times]
-        times = self.simulation.tmesh
-        dt = self.simulation.dt
-
-        def get_spectrum(source_time: GaussianPulse, freqs: list[float]) -> complex:
-            """Get the spectrum of a source time at a given frequency."""
-            return source_time.spectrum(times=times, freqs=freqs, dt=dt)
-
-        # compute matrix coupling the spectra of Gaussian pulses centered at each adjoint freq
-        def get_coupling_matrix(fwidth: float) -> np.ndarray:
-            """Matrix coupling the spectra of Gaussian pulses centered at each adjoint freq."""
-
-            return np.array(
-                [
-                    get_spectrum(
-                        source_time=GaussianPulse(freq0=source_time.freq0, fwidth=fwidth),
-                        freqs=freqs,
-                    )
-                    for source_time in source_times
-                ]
-            ).T
-
-        amps_adj = np.array([src_time.amp_complex for src_time in source_times])
-
-        # compute the corrected set of amps to inject at each freq to take coupling into account
-        def get_amps_corrected(fwidth: float) -> tuple[np.ndarray, float]:
-            """New set of new adjoint source amps that generate the desired response at each f."""
-            J_coupling = get_coupling_matrix(fwidth=fwidth)
-
-            amps_adj_new, *info = np.linalg.lstsq(J_coupling, amps_adj, rcond=None)
-            # amps_adj_new = np.linalg.solve(J_coupling, amps_adj)
-            residual = J_coupling @ amps_adj_new - amps_adj
-            residual_norm = np.linalg.norm(residual) / np.linalg.norm(amps_adj)
-            return amps_adj_new, residual_norm
-
-        # get the corrected amplitudes
-        amps_corrected, res_norm = get_amps_corrected(self.fwidth_adj)
-
-        if res_norm > RESIDUAL_CUTOFF_ADJOINT:
-            raise ValueError(
-                f"Residual of {res_norm:.5e} found when trying to fit adjoint source spectrum. "
-                f"This is above our accuracy cutoff of {RESIDUAL_CUTOFF_ADJOINT:.5e} and therefore "
-                "we are not able to process this adjoint simulation in a broadband way. "
-                "To fix, split your simulation into a set of simulations, one for each port, and "
-                "run parallel, broadband simulations using 'web.run_async'. "
-            )
-
-        # construct the new adjoint sources with the corrected amplitudes
-        src_times_corrected = [
-            src_time.from_amp_complex(amp=amp, fwidth=self.fwidth_adj)
-            for src_time, amp in zip(source_times, amps_corrected)
-        ]
-        srcs_corrected = []
-        for src_time in src_times_corrected:
-            src_new = src.updated_copy(source_time=src_time)
-            srcs_corrected.append(src_new)
-
-        return srcs_corrected
 
     def get_adjoint_data(self, structure_index: int, data_type: str) -> MonitorDataType:
         """Grab the field or permittivity data for a given structure index."""
