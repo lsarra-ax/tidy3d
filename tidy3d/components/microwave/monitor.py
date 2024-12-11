@@ -1,14 +1,19 @@
 """Objects that define how data is recorded from simulation."""
 
+from __future__ import annotations
+
 import math
 from typing import Union
 
 import numpy as np
 import pydantic.v1 as pd
 
-from ..base import cached_property
+from ...constants import MICROMETER, fp_eps
+from ..base import Tidy3dBaseModel, cached_property
 from ..base_sim.monitor import AbstractMonitor
-from ..geometry.base import Box
+from ..geometry.base import Box, Geometry
+from ..geometry.utils import SnapBehavior, SnapLocation, SnappingSpec, snap_box_to_grid
+from ..grid.grid import Grid
 from ..monitor import (
     BYTES_COMPLEX,
     BYTES_REAL,
@@ -17,20 +22,90 @@ from ..monitor import (
     FreqMonitor,
     TimeMonitor,
 )
-from ..types import ArrayFloat1D, ArrayFloat2D, Ax, Axis, Coordinate, Direction
+from ..types import ArrayFloat1D, ArrayFloat2D, Ax, Axis, Axis2D, Bound, Direction
+from ..validators import assert_plane
+
+
+class Path2D(Tidy3dBaseModel):
+    vertices: ArrayFloat2D = pd.Field(
+        ...,
+        title="Vertices",
+        description="List of (d1, d2) defining the 2 dimensional positions of the path. "
+        "The index of dimension should be in the ascending order, which means "
+        "if the axis corresponds with ``y``, the coordinates of the vertices should be (x, z). "
+        "If you wish to indicate a closed contour, the final vertex should be made "
+        "equal to the first vertex, i.e., ``vertices[-1] == vertices[0]``",
+        units=MICROMETER,
+    )
+
+    position: float = pd.Field(
+        ...,
+        title="Position",
+        description="Position of the plane along the ``axis``.",
+    )
+
+    axis: Axis = pd.Field(
+        2, title="Axis", description="Specifies dimension of the planar axis (0,1,2) -> (x,y,z)."
+    )
+
+    @cached_property
+    def bounds(self) -> Bound:
+        """Helper to get the geometric bounding box of the path."""
+        path_min = np.amin(self.vertices, axis=0)
+        path_max = np.amax(self.vertices, axis=0)
+        min_bound = Geometry.unpop_axis(self.position, path_min, self.axis)
+        max_bound = Geometry.unpop_axis(self.position, path_max, self.axis)
+        return (min_bound, max_bound)
+
+    @cached_property
+    def _is_axis_1D(self) -> Axis2D:
+        """Checks if the path is actually 1D. If it is 1D, the axis is returned.
+        Otherwise ``None`` is returned.
+        """
+        vertices = self.path.vertices
+        for axis in (0, 1):
+            coord = vertices[0][axis]
+            if np.allclose(vertices[:, axis], coord, rtol=fp_eps):
+                return axis
+        return None
+
+    def convert_axis_2d(self, axis_2d: Axis2D) -> Axis:
+        """Converts a 2D axis to a full 3D axis."""
+        if axis_2d >= self.axis:
+            return axis_2d + 1
+        return axis_2d
+
+    @staticmethod
+    def from_bounds(bounds: Bound) -> Path2D:
+        for axis in (0, 1, 2):
+            if math.isclose(bounds[1][axis] - bounds[0][axis], 0):
+                normal_axis = axis
+                break
+        # Get 2D versions of vertices
+        position, a = Geometry.pop_axis(bounds[0], normal_axis)
+        _, b = Geometry.pop_axis(bounds[1], normal_axis)
+        vertices = np.array((a, b))
+        return Path2D(vertices=vertices, axis=normal_axis, position=position)
+
+
+class BoxPath2D(Box):
+    _plane_validator = assert_plane()
+
+    sign: Direction = pd.Field(
+        ...,
+        title="Direction of the Path",
+        description="Positive indicates a counter-clockwise orientation..",
+    )
 
 
 class AbstractVoltageMonitor(AbstractMonitor):
-    r_plus: Coordinate = pd.Field(
+    path: Path2D = pd.Field(
         ...,
-        title="Positive terminal position.",
-        description="Position vector of positive terminal.",
-    )
-
-    r_minus: Coordinate = pd.Field(
-        ...,
-        title="Negative terminal position.",
-        description="Position vector of negative terminal.",
+        title="Path",
+        description="Computed voltage is :math:`V=V_b-V_a`, where position ``a`` and position ``b`` are "
+        "the first and last vertex in the supplied path, respectively. "
+        "For most cases, the path will consist of only two points, position ``a`` and position ``b``.",
+        units=MICROMETER,
     )
 
     @cached_property
@@ -42,20 +117,14 @@ class AbstractVoltageMonitor(AbstractMonitor):
         :class:`Box`
             Representation of the monitor geometry as a :class:`Box`.
         """
-        rmin = tuple(min(x, y) for x, y in zip(self.r_plus, self.r_minus))
-        rmax = tuple(max(x, y) for x, y in zip(self.r_plus, self.r_minus))
-        return Box.from_bounds(rmin, rmax)
-
-    @cached_property
-    def _r_delta(self) -> np.ndarray:
-        return np.array(self.r_plus) - np.array(self.r_minus)
+        return Box.from_bounds(self.path.bounds)
 
     @cached_property
     def _integration_axes(self) -> list[Axis]:
-        axes = []
-        for delta, axis in zip(self._r_delta, (0, 1, 2)):
-            if not math.isclose(delta, 0):
-                axes.append(axis)
+        if self.path._is_axis_1D:
+            return [Path2D.convert_axis_2d(self.path._is_axis_1D)]
+        axes = [0, 1, 2]
+        axes = Geometry.pop_axis(axes, self.path.axis)
         return axes
 
     @cached_property
@@ -66,6 +135,12 @@ class AbstractVoltageMonitor(AbstractMonitor):
         for axis in axes:
             fields.append(Efields[axis])
         return fields
+
+    @property
+    def _to_solver_monitor(self):
+        """Monitor definition that will be used to define the field recording during the time
+        stepping."""
+        return self
 
     def plot(
         self,
@@ -99,8 +174,7 @@ class VoltageMonitor(FreqMonitor, AbstractVoltageMonitor):
 
     """
 
-    @cached_property
-    def _to_solver_monitor(self) -> FieldMonitor:
+    def _to_field_monitor(self, grid: Grid = None) -> FieldMonitor:
         box = self.geometry
         return FieldMonitor(
             name=self.name,
@@ -144,8 +218,7 @@ class VoltageTimeMonitor(TimeMonitor, AbstractVoltageMonitor):
     ...     name='flux_vs_time')
     """
 
-    @cached_property
-    def _to_solver_monitor(self) -> FieldTimeMonitor:
+    def _to_field_monitor(self, grid: Grid = None) -> FieldTimeMonitor:
         box = self.geometry
         return FieldTimeMonitor(
             name=self.name,
@@ -178,14 +251,8 @@ class VoltageTimeMonitor(TimeMonitor, AbstractVoltageMonitor):
 
 
 class AbstractCurrentMonitor(AbstractMonitor):
-    path: Union[Box, ArrayFloat2D] = pd.Field(
+    path: Union[Box, Path2D] = pd.Field(
         ...,
-        title="First position of",
-        description="Collection of field components to store in the monitor.",
-    )
-
-    sign: Direction = pd.Field(
-        "+",
         title="First position of",
         description="Collection of field components to store in the monitor.",
     )
@@ -199,7 +266,7 @@ class AbstractCurrentMonitor(AbstractMonitor):
         :class:`Box`
             Representation of the monitor geometry as a :class:`Box`.
         """
-        return self.path
+        return Box.from_bounds(self.path.bounds)
 
     @cached_property
     def _integration_axes(self) -> list[Axis]:
@@ -221,6 +288,27 @@ class AbstractCurrentMonitor(AbstractMonitor):
         for axis in axes:
             fields.append(Hfields[axis])
         return fields
+
+    @property
+    def _to_solver_monitor(self):
+        """Monitor definition that will be used to define the field recording during the time
+        stepping."""
+        return self
+
+    def _to_enclosing_box(self, grid: Grid) -> Box:
+        """Slightly expanded :class:`Box` aligned with the locations of the magnetic field.
+
+        Returns
+        -------
+        :class:`Box`
+            :class:`Box` aligned with the locations of the magnetic field.
+        """
+        box = self.geometry
+        behavior = 3 * [SnapBehavior.Expand]
+        behavior[self.normal_axis] = SnapBehavior.Off
+        location = 3 * [SnapLocation.Center]
+        snap_spec = SnappingSpec(location=location, behavior=behavior)
+        return snap_box_to_grid(grid, box, snap_spec)
 
     def plot(
         self,
@@ -254,9 +342,10 @@ class CurrentMonitor(FreqMonitor, AbstractCurrentMonitor):
 
     """
 
-    @cached_property
-    def _to_solver_monitor(self) -> FieldMonitor:
+    def _to_field_monitor(self, grid: Grid = None) -> FieldMonitor:
         box = self.geometry
+        if grid:
+            box = self._to_enclosing_box(grid)
         return FieldMonitor(
             name=self.name,
             freqs=self.freqs,
@@ -303,9 +392,10 @@ class CurrentTimeMonitor(TimeMonitor, AbstractCurrentMonitor):
 
     """
 
-    @cached_property
-    def _to_solver_monitor(self) -> FieldTimeMonitor:
+    def _to_field_monitor(self, grid: Grid = None) -> FieldTimeMonitor:
         box = self.geometry
+        if grid:
+            box = self._to_enclosing_box(grid)
         return FieldTimeMonitor(
             name=self.name,
             start=self.start,

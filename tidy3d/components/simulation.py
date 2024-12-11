@@ -89,6 +89,7 @@ from .source import (
 from .structure import MeshOverrideStructure, Structure
 from .subpixel_spec import SubpixelSpec
 from .types import TYPE_TAG_STR, Ax, Axis, FreqBound, InterpMethod, Literal, Symmetry, annotate_type
+from .utils import increment_float
 from .validators import (
     assert_objects_in_sim_bounds,
     validate_mode_objects_symmetry,
@@ -1092,7 +1093,7 @@ class AbstractYeeGridSimulation(AbstractSimulation, ABC):
         # Expand monitor size slightly to break numerical precision in favor of always having
         # enough data to span the full monitor.
         box = monitor.geometry
-        expand_size = [size + fp_eps if size > fp_eps else size for size in box.size]
+        expand_size = [increment_float(size, 1.0) if size > fp_eps else size for size in box.size]
         box_expanded = Box(center=box.center, size=expand_size)
         # Discretize without extension for now
         span_inds = np.array(self.grid.discretize_inds(box_expanded, extend=False))
