@@ -1133,10 +1133,11 @@ class SimulationData(AbstractYeeGridSimulationData):
         # Group sources by frequency or port, whichever gives fewer groups
         num_ports = len(hashes_to_src_times)
         num_unique_freqs = len({src.source_time.freq0 for src in adj_srcs})
-        adjoint_infos = []
 
+        log.info(f"Found {num_ports} spatial ports and {num_unique_freqs} unique frequencies.")
+
+        adjoint_infos = []
         if num_unique_freqs <= num_ports:
-            # Group sources by frequency - more efficient when fewer unique frequencies
             log.info("Grouping adjoint sources by frequency.")
             unique_freqs = {src.source_time.freq0 for src in adj_srcs}
             for freq0 in unique_freqs:
@@ -1145,7 +1146,6 @@ class SimulationData(AbstractYeeGridSimulationData):
                     AdjointSourceInfo(sources=group, post_norm=1.0, normalize_sim=True)
                 )
         else:
-            # Group sources by port - more efficient when fewer unique ports
             log.info("Grouping adjoint sources by port.")
             for src_times in hashes_to_src_times.values():
                 group = [src.updated_copy(source_time=src_time) for src_time in src_times]
@@ -1157,7 +1157,6 @@ class SimulationData(AbstractYeeGridSimulationData):
                 )
 
         log.info(f"Created {len(adjoint_infos)} adjoint source groups.")
-        exit()
         return adjoint_infos
 
     def process_adjoint_sources_broadband(

@@ -580,18 +580,23 @@ def _run_bwd(
     sim_data_orig = aux_data[AUX_KEY_SIM_DATA_ORIGINAL]
     sim_fields_keys = list(sim_fields_original.keys())
 
-    td.log.debug(f"Number of fields to compute gradients for: {len(sim_fields_keys)}")
+    td.log.info(f"Number of fields to compute gradients for: {len(sim_fields_keys)}")
 
     if local_gradient:
         sim_data_fwd = aux_data[AUX_KEY_SIM_DATA_FWD]
-        td.log.debug("Using local gradient computation mode")
+        td.log.info("Using local gradient computation mode")
     else:
-        td.log.debug("Using server-side gradient computation mode")
+        td.log.info("Using server-side gradient computation mode")
 
     td.log.info("Constructing custom vjp function for backwards pass.")
 
     def vjp(data_fields_vjp: AutogradFieldMap) -> AutogradFieldMap:
         """dJ/d{sim.traced_fields()} as a function of Function of dJ/d{data.traced_fields()}"""
+        data_fields_vjp = {k: v for k, v in data_fields_vjp.items() if not np.allclose(v, 0)}
+        if not data_fields_vjp:
+            td.log.info("All VJP fields are zero, skipping adjoint simulation")
+            return {k: 0 * v for k, v in sim_fields_original.items()}
+
         sims_adj = setup_adj(
             data_fields_vjp=data_fields_vjp,
             sim_data_orig=sim_data_orig,
@@ -611,32 +616,30 @@ def _run_bwd(
         task_names_adj = [f"{task_name}_adjoint_{i}" for i in range(len(sims_adj))]
         sims_adj_dict = dict(zip(task_names_adj, sims_adj))
 
-        td.log.debug(f"Running {len(sims_adj)} adjoint simulation(s)")
+        td.log.info(f"Running {len(sims_adj)} adjoint simulation(s)")
 
         if local_gradient:
             # Run all adjoint sims in batch
-            td.log.debug("Starting local batch adjoint simulations")
+            td.log.info("Starting local batch adjoint simulations")
             batch_data_adj, _ = _run_async_tidy3d(sims_adj_dict, **run_kwargs)
-            td.log.debug("Completed local batch adjoint simulations")
+            td.log.info("Completed local batch adjoint simulations")
 
             # Combine results from all adjoint sims
             vjp_traced_fields = {}
-            for sim_data_adj in batch_data_adj.values():
-                print(sim_data_adj.simulation.post_norm)
+            for k, sim_data_adj in batch_data_adj.items():
+                td.log.info(f"Processing VJP contribution from {k}")
                 vjp_fields = postprocess_adj(
                     sim_data_adj=sim_data_adj,
                     sim_data_orig=sim_data_orig,
                     sim_data_fwd=sim_data_fwd,
                     sim_fields_keys=sim_fields_keys,
                 )
-                # Accumulate gradients from each adjoint sim
+                # Add gradients from each adjoint sim
                 for k, v in vjp_fields.items():
                     if k in vjp_traced_fields:
                         vjp_traced_fields[k] += v
                     else:
                         vjp_traced_fields[k] = v
-            print(vjp_traced_fields)
-            exit()
         else:
             task_id_fwd = aux_data[AUX_KEY_FWD_TASK_ID]
             run_kwargs["parent_tasks"] = [task_id_fwd]
@@ -647,12 +650,12 @@ def _run_bwd(
             }
 
             # Run all adjoint sims in batch and get combined results
-            td.log.debug("Starting server-side batch adjoint simulations")
+            td.log.info("Starting server-side batch adjoint simulations")
             vjp_traced_fields_dict = _run_async_tidy3d_bwd(
                 simulations=sims_adj_dict,
                 **run_kwargs,
             )
-            td.log.debug("Completed server-side batch adjoint simulations")
+            td.log.info("Completed server-side batch adjoint simulations")
 
             # Combine results from all adjoint sims
             vjp_traced_fields = {}
@@ -805,10 +808,8 @@ def setup_adj(
         data_vjp_paths=data_vjp_paths,
         adjoint_monitors=adjoint_monitors,
     )
-    if sims_adj is None:
-        return sims_adj
 
-    if _INSPECT_ADJOINT_FIELDS:
+    if _INSPECT_ADJOINT_FIELDS and sims_adj is not None:
         adj_fld_mnt = td.FieldMonitor(
             center=_INSPECT_ADJOINT_PLANE.center,
             size=_INSPECT_ADJOINT_PLANE.size,
