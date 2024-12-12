@@ -5,6 +5,7 @@ import tempfile
 import typing
 from collections import defaultdict
 from os.path import basename, dirname, join
+from pathlib import Path
 
 import numpy as np
 from autograd.builtins import dict as dict_ag
@@ -186,7 +187,6 @@ def run(
             local_gradient=local_gradient,
         )
 
-    return td.SimulationData.from_file("simulation_data.hdf5")
     return run_webapi(
         simulation=simulation,
         task_name=task_name,
@@ -592,7 +592,7 @@ def _run_bwd(
 
     def vjp(data_fields_vjp: AutogradFieldMap) -> AutogradFieldMap:
         """dJ/d{sim.traced_fields()} as a function of Function of dJ/d{data.traced_fields()}"""
-        data_fields_vjp = {k: v for k, v in data_fields_vjp.items() if not np.allclose(v, 0)}
+        # data_fields_vjp = {k: v for k, v in data_fields_vjp.items() if not np.allclose(v, 0)}
         if not data_fields_vjp:
             td.log.info("All VJP fields are zero, skipping adjoint simulation")
             return {k: 0 * v for k, v in sim_fields_original.items()}
@@ -621,7 +621,16 @@ def _run_bwd(
         if local_gradient:
             # Run all adjoint sims in batch
             td.log.info("Starting local batch adjoint simulations")
-            batch_data_adj, _ = _run_async_tidy3d(sims_adj_dict, **run_kwargs)
+            path = run_kwargs.pop("path")
+            path_dir = str(Path(path).parent.resolve())
+            try:
+                # raise ValueError
+                batch_data_adj = BatchData.load(path_dir)
+                td.log.debug(f"Loaded batch from {path_dir}")
+            except Exception:
+                batch_data_adj, _ = _run_async_tidy3d(
+                    sims_adj_dict, path_dir=path_dir, **run_kwargs
+                )
             td.log.info("Completed local batch adjoint simulations")
 
             # Combine results from all adjoint sims
@@ -634,10 +643,11 @@ def _run_bwd(
                     sim_data_fwd=sim_data_fwd,
                     sim_fields_keys=sim_fields_keys,
                 )
+                print(vjp_fields)
                 # Add gradients from each adjoint sim
                 for k, v in vjp_fields.items():
                     if k in vjp_traced_fields:
-                        vjp_traced_fields[k] += v
+                        vjp_traced_fields[k] = (vjp_traced_fields[k] + v) / 2
                     else:
                         vjp_traced_fields[k] = v
         else:
@@ -971,9 +981,13 @@ def _run_tidy3d(
     simulation: td.Simulation, task_name: str, **run_kwargs
 ) -> tuple[td.SimulationData, str]:
     """Run a simulation without any tracers using regular web.run()."""
-    return td.SimulationData.from_file(
-        "simulation_data.hdf5"
-    ), "fdve-a13fd64e-608d-410a-ac1a-ead20a57b6b0"
+    try:
+        # raise ValueError
+        return td.SimulationData.from_file(
+            "debug/simulation_data.hdf5"
+        ), "fdve-a13fd64e-608d-410a-ac1a-ead20a57b6b0"
+    except Exception:
+        pass
     job_init_kwargs = parse_run_kwargs(**run_kwargs)
     job = Job(simulation=simulation, task_name=task_name, **job_init_kwargs)
     td.log.info(f"running {job.simulation_type} simulation with '_run_tidy3d()'")
