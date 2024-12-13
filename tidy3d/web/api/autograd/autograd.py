@@ -623,33 +623,27 @@ def _run_bwd(
             td.log.info("Starting local batch adjoint simulations")
             path = run_kwargs.pop("path")
             path_dir = str(Path(path).parent.resolve())
-            try:
-                # raise ValueError
-                batch_data_adj = BatchData.load(path_dir)
-                td.log.debug(f"Loaded batch from {path_dir}")
-            except Exception:
-                batch_data_adj, _ = _run_async_tidy3d(
-                    sims_adj_dict, path_dir=path_dir, **run_kwargs
-                )
+            batch_data_adj, _ = _run_async_tidy3d(sims_adj_dict, path_dir=path_dir, **run_kwargs)
             td.log.info("Completed local batch adjoint simulations")
 
             # Combine results from all adjoint sims
             vjp_traced_fields = {}
+            sim_data_adjs = []
             for k, sim_data_adj in batch_data_adj.items():
                 td.log.info(f"Processing VJP contribution from {k}")
-                vjp_fields = postprocess_adj(
-                    sim_data_adj=sim_data_adj,
-                    sim_data_orig=sim_data_orig,
-                    sim_data_fwd=sim_data_fwd,
-                    sim_fields_keys=sim_fields_keys,
-                )
-                print(vjp_fields)
-                # Add gradients from each adjoint sim
-                for k, v in vjp_fields.items():
-                    if k in vjp_traced_fields:
-                        vjp_traced_fields[k] = (vjp_traced_fields[k] + v) / 2
-                    else:
-                        vjp_traced_fields[k] = v
+                sim_data_adjs.append(sim_data_adj)
+            vjp_fields = postprocess_adj(
+                sim_data_adj=sim_data_adjs,
+                sim_data_orig=sim_data_orig,
+                sim_data_fwd=sim_data_fwd,
+                sim_fields_keys=sim_fields_keys,
+            )
+            # Add gradients from each adjoint sim
+            for k, v in vjp_fields.items():
+                if k in vjp_traced_fields:
+                    vjp_traced_fields[k] += v
+                else:
+                    vjp_traced_fields[k] = v
         else:
             task_id_fwd = aux_data[AUX_KEY_FWD_TASK_ID]
             run_kwargs["parent_tasks"] = [task_id_fwd]
@@ -865,14 +859,20 @@ def postprocess_adj(
         # grab the forward and adjoint data
         E_fwd = sim_data_fwd.get_adjoint_data(structure_index, data_type="fld")
         eps_fwd = sim_data_fwd.get_adjoint_data(structure_index, data_type="eps")
-        E_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="fld")
-        eps_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="eps")
+        E_adjs = [sd.get_adjoint_data(structure_index, data_type="fld") for sd in sim_data_adj]
+        # E_adj = sim_data_adj.get_adjoint_data(structure_index, data_type="fld")
+        E_adj = E_adjs[0].updated_copy(
+            Ex=E_adjs[0].Ex + E_adjs[1].Ex,
+            Ey=E_adjs[0].Ey + E_adjs[1].Ey,
+            Ez=E_adjs[0].Ez + E_adjs[1].Ez,
+        )
+        eps_adj = sim_data_adj[0].get_adjoint_data(structure_index, data_type="eps")
 
         # post normalize the adjoint fields if a single, broadband source
 
         fwd_flds_normed = {}
         for key, val in E_adj.field_components.items():
-            fwd_flds_normed[key] = val * sim_data_adj.simulation.post_norm
+            fwd_flds_normed[key] = val * sim_data_adj[0].simulation.post_norm
 
         E_adj = E_adj.updated_copy(**fwd_flds_normed)
 
@@ -890,7 +890,7 @@ def postprocess_adj(
         structure = sim_data_fwd.simulation.structures[structure_index]
 
         # todo: handle multi-frequency, move to a property?
-        frequencies = {src.source_time.freq0 for src in sim_data_adj.simulation.sources}
+        frequencies = {src.source_time.freq0 for src in sim_data_adj[0].simulation.sources}
         frequencies = list(frequencies)
         freq_adj = frequencies[0] or None
 
@@ -981,13 +981,6 @@ def _run_tidy3d(
     simulation: td.Simulation, task_name: str, **run_kwargs
 ) -> tuple[td.SimulationData, str]:
     """Run a simulation without any tracers using regular web.run()."""
-    try:
-        # raise ValueError
-        return td.SimulationData.from_file(
-            "debug/simulation_data.hdf5"
-        ), "fdve-a13fd64e-608d-410a-ac1a-ead20a57b6b0"
-    except Exception:
-        pass
     job_init_kwargs = parse_run_kwargs(**run_kwargs)
     job = Job(simulation=simulation, task_name=task_name, **job_init_kwargs)
     td.log.info(f"running {job.simulation_type} simulation with '_run_tidy3d()'")

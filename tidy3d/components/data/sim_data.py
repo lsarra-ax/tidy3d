@@ -1138,8 +1138,8 @@ class SimulationData(AbstractYeeGridSimulationData):
         log.info(f"Found {num_ports} spatial ports and {num_unique_freqs} unique frequencies.")
 
         adjoint_infos = []
-        # if num_unique_freqs <= num_ports or True:
-        if num_unique_freqs <= num_ports and False:
+        if num_unique_freqs <= num_ports or True:
+            # if num_unique_freqs <= num_ports and False:
             # if num_unique_freqs <= num_ports:
             log.info("Grouping adjoint sources by frequency.")
             unique_freqs = {src.source_time.freq0 for src in adj_srcs}
