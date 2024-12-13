@@ -31,12 +31,6 @@ AUX_KEY_SIM_ORIGINAL = "sim_original"
 SIM_VJP_FILE = "output/autograd_sim_vjp.hdf5"
 SIM_FIELDS_KEYS_FILE = "autograd_sim_fields_keys.hdf5"
 
-ISSUE_URL = (
-    "https://github.com/flexcompute/tidy3d/issues/new?"
-    "assignees=tylerflex&labels=adjoint&projects=&template=autograd_bug.md"
-)
-URL_LINK = f"[blue underline][link={ISSUE_URL}]'{ISSUE_URL}'[/link][/blue underline]"
-
 MAX_NUM_TRACED_STRUCTURES = 500
 
 # default value for whether to do local gradient calculation (True) or server side (False)
@@ -712,7 +706,7 @@ def _run_async_bwd(
                 sim_data_fwd = sim_data_fwd_dict[task_name]
                 sim_fields_keys = sim_fields_keys_dict[task_name]
 
-                sim_data_adj = batch_data_adj.get(task_name_adj)
+                sim_data_adj = batch_data_adj[task_name_adj]
 
                 sim_fields_vjp = postprocess_adj(
                     sim_data_adj=sim_data_adj,

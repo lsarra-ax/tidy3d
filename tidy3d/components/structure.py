@@ -21,7 +21,6 @@ from .base import Tidy3dBaseModel, skip_if_fields_missing
 from .data.data_array import ScalarFieldDataArray
 from .geometry.base import Box, Geometry
 from .geometry.polyslab import PolySlab
-from .geometry.primitives import Cylinder
 from .geometry.utils import GeometryType, validate_no_transformed_polyslabs
 from .grid.grid import Coords
 from .medium import AbstractCustomMedium, CustomMedium, Medium, Medium2D, MediumType
@@ -252,8 +251,8 @@ class Structure(AbstractStructure):
     ) -> (FieldMonitor, PermittivityMonitor):
         """Generate the field and permittivity monitor for this structure."""
 
-        geo = self.geometry
-        box = geo.bounding_box
+        geometry = self.geometry
+        box = geometry.bounding_box
 
         # we dont want these fields getting traced by autograd, otherwise it messes stuff up
 
@@ -262,11 +261,11 @@ class Structure(AbstractStructure):
 
         # polyslab only needs fields at the midpoint along axis
         if (
-            isinstance(geo, (PolySlab, Cylinder))
+            isinstance(geometry, PolySlab)
             and not isinstance(self.medium, AbstractCustomMedium)
             and field_keys == [("vertices",)]
         ):
-            size[geo.axis] = 0
+            size[geometry.axis] = 0
 
         mnt_fld = FieldMonitor(
             size=size,

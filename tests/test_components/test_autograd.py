@@ -73,11 +73,15 @@ LZ = 7.0 * WVL
 IS_3D = False
 POLYSLAB_AXIS = 2
 
-# TODO: test 2D and 3D parameterized
+# angle of the measurement waveguide
+ROT_ANGLE_WG = 0 * np.pi / 4
+
+# position of output mode monitor
+MODE_FIELD_SPC = 0.75
+MODE_FLD_MNT_SPC = MODE_FIELD_SPC * WVL
 
 LX = 3.5 * WVL if IS_3D else 0.0
 PML_X = True if IS_3D else False
-
 
 # shape of the custom medium
 DA_SHAPE_X = 1 if IS_3D else 1
@@ -117,8 +121,10 @@ SIM_BASE = td.Simulation(
         td.Structure(
             geometry=td.Box(
                 size=(0.5, 0.5, LZ / 2),
-                center=(0, 0, LZ / 2),
-            ),
+                center=(0, 0, 0),
+            )
+            .rotated(ROT_ANGLE_WG, axis=0)
+            .translated(x=0, y=-np.tan(ROT_ANGLE_WG) * MODE_FIELD_SPC, z=LZ / 2),
             medium=td.Medium(permittivity=2.0),
         )
     ],
@@ -223,12 +229,23 @@ def use_emulated_run(monkeypatch):
                 batch_data_orig[task_name] = sim_data_orig
                 task_ids_fwd[task_name] = task_id_fwd
 
-            return batch_data_orig, task_ids_fwd
+            class EmulatedBatchData(web.BatchData):
+                def load_sim_data(self, task_name):
+                    return batch_data_orig[task_name]
+
+            task_paths = {task_name: "" for task_name in simulations.keys()}
+
+            batch_data = EmulatedBatchData(
+                task_paths=task_paths,
+                task_ids=task_ids_fwd,
+                verbose=False,
+            )
+
+            return batch_data, task_ids_fwd
 
         def emulated_run_async_bwd(simulations, **run_kwargs) -> td.SimulationData:
             vjp_dict = {}
             for task_name, simulation in simulations.items():
-                task_id_fwd = task_name[:-8]
                 vjp_dict[task_name] = emulated_run_bwd(simulation, task_name, **run_kwargs)
             return vjp_dict
 
@@ -462,12 +479,13 @@ def make_structures(params: anp.ndarray) -> dict[str, td.Structure]:
 def make_monitors() -> dict[str, tuple[td.Monitor, typing.Callable[[td.SimulationData], float]]]:
     """Make a dictionary of all the possible monitors in the simulation."""
 
-    X = 0.75
-
     mode_mnt = td.ModeMonitor(
         size=(2, 2, 0),
-        center=(0, 0, +LZ / 2 - X * WVL),
-        mode_spec=td.ModeSpec(),
+        center=(0, 0, +LZ / 2 - MODE_FIELD_SPC),
+        mode_spec=td.ModeSpec(
+            angle_theta=ROT_ANGLE_WG,
+            angle_phi=3 * np.pi / 2,
+        ),
         freqs=[FREQ0],
         name="mode",
     )
@@ -488,7 +506,7 @@ def make_monitors() -> dict[str, tuple[td.Monitor, typing.Callable[[td.Simulatio
 
     field_vol = td.FieldMonitor(
         size=(1, 1, 0),
-        center=(0, 0, +LZ / 2 - X * WVL),
+        center=(0, 0, +LZ / 2 - MODE_FIELD_SPC),
         freqs=[FREQ0],
         name="field_vol",
     )
