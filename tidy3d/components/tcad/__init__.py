@@ -8,8 +8,3 @@ can be represented by standard electronic circuit elements (including RF lumped 
 In order to have the option to eventually break off the packages into more maintainable subpackages, all the relevant
 types will be contained within this sublevel __init__.py. However, this is not possible due to how coupled our software structure currently is.
 """
-
-# tcad
-# from tidy3d.components.tcad import (
-#     DCSpec,
-# )
