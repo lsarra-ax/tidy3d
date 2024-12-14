@@ -183,10 +183,7 @@ from tidy3d.components.heat_charge.source import (
 # heat
 # heat
 from tidy3d.components.heat_charge_spec import (
-    ConductorSpec,
     FluidSpec,
-    InsulatorSpec,
-    SemiConductorSpec,
     SolidSpec,
 )
 
@@ -199,6 +196,10 @@ from tidy3d.components.lumped_element import (
     LumpedResistor,
     RectangularLumpedElement,
     RLCNetwork,
+)
+from tidy3d.components.materials.tcad.charge import (
+    ActiveSemiConductorMedium,
+    ChargeMedium,
 )
 
 # medium
@@ -375,7 +376,7 @@ __all__ = [
     "ChargeToleranceSpec",
     "ClipOperation",
     "CoaxialLumpedResistor",
-    "ConductorSpec",
+    "ChargeMedium",
     "ContinuousWave",
     "ContinuousWaveTimeModulation",
     "ConvectionBC",
@@ -490,7 +491,7 @@ __all__ = [
     "IndexPerturbation",
     "IndexedDataArray",
     "InsulatingBC",
-    "InsulatorSpec",
+    "ChargeMedium",
     "K_B",
     "KerrNonlinearity",
     "LinearChargePerturbation",
@@ -554,7 +555,7 @@ __all__ = [
     "ScalarModeFieldDataArray",
     "Scene",
     "Sellmeier",
-    "SemiConductorSpec",
+    "ActiveSemiConductorMedium",
     "ShockleyReedHallRecombination",
     "Simulation",
     "SimulationBoundary",
