@@ -1,7 +1,6 @@
 """
 Commandline interface for tidy3d.
 """
-import errno
 import json
 import os.path
 import ssl
