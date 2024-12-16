@@ -18,11 +18,8 @@ from .develop.index import develop
 
 
 # Prevent race condition on threads
-try:
-    os.makedirs(TIDY3D_DIR)
-except OSError as e:
-    if e.errno != errno.EEXIST:
-        raise  # Reraise if failed for reasons other than existing already
+os.makedirs(TIDY3D_DIR, exist_ok=True)
+
 
 
 def get_description():
