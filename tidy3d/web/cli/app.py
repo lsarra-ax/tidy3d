@@ -1,7 +1,7 @@
 """
 Commandline interface for tidy3d.
 """
-
+import errno
 import json
 import os.path
 import ssl
@@ -16,8 +16,13 @@ from ..core.constants import HEADER_APIKEY, KEY_APIKEY
 from ..core.environment import Env
 from .develop.index import develop
 
-if not os.path.exists(TIDY3D_DIR):
-    os.mkdir(TIDY3D_DIR)
+
+# Prevent race condition on threads
+try:
+    os.makedirs(TIDY3D_DIR)
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        raise  # Reraise if failed for reasons other than existing already
 
 
 def get_description():
